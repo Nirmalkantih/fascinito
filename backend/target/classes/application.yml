@@ -1,0 +1,75 @@
+spring:
+  application:
+    name: pos-backend
+
+  # Configure multipart file uploads (max 5MB)
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+
+  # Configure static resource mapping for file uploads
+  web:
+    resources:
+      # Use environment variable for Docker compatibility, fallback to local uploads directory
+      static-locations: file:${UPLOAD_BASE_PATH:uploads}/,classpath:/static/
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:pos_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: ${SHOW_SQL:true}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+  
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: UTC
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api
+  # Enable HTTP compression for better performance
+  compression:
+    enabled: true
+    min-response-size: 1024  # 1KB minimum size to compress
+    compressed-mime-types:
+      - text/html
+      - text/xml
+      - text/plain
+      - text/css
+      - text/javascript
+      - application/javascript
+      - application/json
+      - application/xml+rss
+      - application/rss+xml
+      - image/jpeg
+      - image/png
+      - image/gif
+      - image/webp
+      - image/svg+xml
+
+jwt:
+  secret: ${JWT_SECRET:yourSecretKeyForJWTTokenGenerationMustBeLongEnoughForHS256Algorithm}
+  access-token-expiration: ${JWT_ACCESS_EXPIRATION:3600000} # 1 hour in milliseconds
+  refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days in milliseconds
+
+cors:
+  allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:5173}
+  allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
+
+logging:
+  level:
+    com.fascinito: ${LOG_LEVEL:DEBUG}
+    org.springframework.security: ${LOG_LEVEL:DEBUG}

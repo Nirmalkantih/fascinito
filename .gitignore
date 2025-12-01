@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+/target/
+/.mvn
+.mvn/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Build
+dist/
+build/
+*.log
+
+# Environment
+.env
+.env.local
+.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.sql.log

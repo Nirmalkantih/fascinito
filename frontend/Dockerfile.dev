@@ -1,0 +1,22 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy project files
+COPY . .
+
+# Expose Vite dev server port
+EXPOSE 5173
+
+# Set environment variables
+ENV VITE_API_URL=http://localhost:8080/api
+ENV VITE_RAZORPAY_KEY_ID=rzp_test_1234567890abcd
+
+# Start development server with hot reload
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
