@@ -121,7 +121,9 @@ public class CartController {
      */
     private Long getCurrentUserId() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        // Try to find user by email or phone (username could be either)
         User user = userRepository.findByEmail(username)
+                .or(() -> userRepository.findByPhone(username))
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         return user.getId();
     }
@@ -136,7 +138,10 @@ public class CartController {
             if ("anonymousUser".equals(username)) {
                 return null;
             }
-            var user = userRepository.findByEmail(username).orElse(null);
+            // Try to find user by email or phone (username could be either)
+            var user = userRepository.findByEmail(username)
+                    .or(() -> userRepository.findByPhone(username))
+                    .orElse(null);
             return user != null ? user.getId() : null;
         } catch (Exception e) {
             return null;

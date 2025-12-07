@@ -32,6 +32,16 @@ public class Payment {
     @Column(unique = true, length = 100)
     private String transactionId;
 
+    // Razorpay specific fields
+    @Column(length = 100)
+    private String razorpayOrderId;
+
+    @Column(length = 100)
+    private String razorpayPaymentId;
+
+    @Column(length = 100)
+    private String razorpaySignature;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private PaymentMethod paymentMethod;
@@ -65,6 +75,10 @@ public class Payment {
         DEBIT_CARD,
         PAYPAL,
         STRIPE,
+        RAZORPAY,
+        UPI,
+        NET_BANKING,
+        WALLET,
         CASH,
         OTHER
     }

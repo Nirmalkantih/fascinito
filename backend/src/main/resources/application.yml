@@ -69,6 +69,12 @@ cors:
   allowed-headers: "*"
   allow-credentials: true
 
+# Razorpay Configuration
+razorpay:
+  key-id: ${RAZORPAY_KEY_ID:rzp_test_your_key_id}
+  key-secret: ${RAZORPAY_KEY_SECRET:your_key_secret}
+  currency: ${RAZORPAY_CURRENCY:INR}
+
 logging:
   level:
     com.fascinito: ${LOG_LEVEL:DEBUG}

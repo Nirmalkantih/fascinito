@@ -13,7 +13,7 @@ interface User {
 interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (phoneOrEmail: string, password: string) => Promise<void>
   signup: (data: SignupData) => Promise<void>
   logout: () => void
   loading: boolean
@@ -80,9 +80,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     restoreSession()
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const login = async (phoneOrEmail: string, password: string) => {
     try {
-      const response = await authService.login({ email, password })
+      const response = await authService.login({ email: phoneOrEmail, password })
       console.log('🔐 Login Response:', response)
       const { accessToken, refreshToken, userId, ...userData } = response
       

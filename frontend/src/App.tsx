@@ -28,7 +28,6 @@ import AdminLocations from './pages/admin/LocationsEnhanced'
 import AdminOrders from './pages/admin/OrdersEnhanced'
 import AdminCustomers from './pages/admin/CustomersEnhanced'
 import AdminStaff from './pages/admin/Staff'
-import AdminAnalytics from './pages/admin/AnalyticsEnhanced'
 import AdminReports from './pages/admin/ReportsEnhanced'
 
 function App() {
@@ -136,7 +135,6 @@ function App() {
         <Route path="orders" element={<ProtectedRoute requiredPermission="view_orders"><AdminOrders /></ProtectedRoute>} />
         <Route path="customers" element={<ProtectedRoute requiredPermission="view_customers"><AdminCustomers /></ProtectedRoute>} />
         <Route path="staff" element={<ProtectedRoute requiredPermission="view_staff"><AdminStaff /></ProtectedRoute>} />
-        <Route path="analytics" element={<ProtectedRoute requiredPermission="view_analytics"><AdminAnalytics /></ProtectedRoute>} />
         <Route path="reports" element={<ProtectedRoute requiredPermission="view_reports"><AdminReports /></ProtectedRoute>} />
       </Route>
 

@@ -15,7 +15,7 @@ import {
 import {
   Visibility,
   VisibilityOff,
-  Email,
+  Phone,
   Lock,
   Login as LoginIcon,
 } from '@mui/icons-material'
@@ -25,7 +25,7 @@ export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const { login } = useAuth()
-  const [formData, setFormData] = useState({ email: '', password: '' })
+  const [formData, setFormData] = useState({ phone: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -35,7 +35,7 @@ export default function Login() {
     setLoading(true)
     setError('')
     try {
-      await login(formData.email, formData.password)
+      await login(formData.phone, formData.password)
 
       // Check if there's a redirect location from where user came (e.g., from cart page)
       const from = (location.state as any)?.from
@@ -136,17 +136,18 @@ export default function Login() {
               margin="normal"
               required
               fullWidth
-              id="email"
-              label="Email Address"
-              name="email"
-              autoComplete="email"
+              id="phone"
+              label="Phone Number"
+              name="phone"
+              autoComplete="tel"
               autoFocus
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="e.g., 1234567890"
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Email color="primary" />
+                    <Phone color="primary" />
                   </InputAdornment>
                 ),
               }}

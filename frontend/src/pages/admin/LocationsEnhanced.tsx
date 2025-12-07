@@ -34,10 +34,8 @@ import {
   Delete, 
   Search, 
   LocationOn,
-  Store,
-  TrendingUp
+  Store
 } from '@mui/icons-material';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { useToast } from '../../contexts/ToastContext';
 import api from '../../services/api';
 import React from 'react';
@@ -96,17 +94,6 @@ export default function LocationsEnhanced() {
     email: '',
     active: true,
   });
-
-  // Mock sales data for demonstration
-  const salesData = [
-    { location: 'Downtown Store', revenue: 45000, orders: 320 },
-    { location: 'Mall Branch', revenue: 38000, orders: 280 },
-    { location: 'Airport Shop', revenue: 52000, orders: 410 },
-    { location: 'Suburban Center', revenue: 32000, orders: 245 },
-    { location: 'City Square', revenue: 41000, orders: 305 },
-  ];
-
-  const CHART_COLORS = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe'];
 
   useEffect(() => {
     fetchLocations();
@@ -195,7 +182,6 @@ export default function LocationsEnhanced() {
 
   const totalLocations = totalElements;
   const activeLocations = locations.filter(l => l.active).length;
-  const totalRevenue = salesData.reduce((sum, l) => sum + l.revenue, 0);
 
   return (
     <Box>
@@ -219,7 +205,7 @@ export default function LocationsEnhanced() {
 
         {/* Stats Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={4}>
+          <Grid item xs={12} sm={6}>
             <Card sx={{ 
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
@@ -259,7 +245,7 @@ export default function LocationsEnhanced() {
             </Card>
           </Grid>
 
-          <Grid item xs={12} sm={4}>
+          <Grid item xs={12} sm={6}>
             <Card sx={{ 
               background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
               color: 'white',
@@ -298,96 +284,8 @@ export default function LocationsEnhanced() {
               </CardContent>
             </Card>
           </Grid>
-
-          <Grid item xs={12} sm={4}>
-            <Card sx={{ 
-              background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-              color: 'white',
-              position: 'relative',
-              overflow: 'hidden',
-              transition: 'transform 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-8px)',
-                boxShadow: theme.shadows[20]
-              },
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: -50,
-                right: -50,
-                width: 150,
-                height: 150,
-                borderRadius: '50%',
-                background: alpha('#ffffff', 0.1)
-              }
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-                      Total Revenue
-                    </Typography>
-                    <Typography variant="h3" sx={{ fontWeight: 700 }}>
-                      ${totalRevenue.toLocaleString()}
-                    </Typography>
-                  </Box>
-                  <Avatar sx={{ bgcolor: alpha('#ffffff', 0.2), width: 56, height: 56 }}>
-                    <TrendingUp sx={{ fontSize: 32 }} />
-                  </Avatar>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
         </Grid>
 
-        {/* Sales Performance Chart */}
-        <Paper sx={{ p: 3, mb: 3, borderRadius: 3, boxShadow: theme.shadows[4] }}>
-          <Typography 
-            variant="h5" 
-            gutterBottom 
-            sx={{ 
-              fontWeight: 700,
-              mb: 3,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}
-          >
-            Sales Performance by Location
-          </Typography>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={salesData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.3)} />
-              <XAxis 
-                dataKey="location" 
-                tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
-              />
-              <YAxis 
-                tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
-                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-              />
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: theme.palette.background.paper,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 8,
-                  boxShadow: theme.shadows[4]
-                }}
-                formatter={(value: any) => [`$${value.toLocaleString()}`, 'Revenue']}
-              />
-              <Legend />
-              <Bar 
-                dataKey="revenue" 
-                name="Revenue" 
-                radius={[8, 8, 0, 0]}
-              >
-                {salesData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </Paper>
       </Box>
 
       {/* Search and Add Button */}

@@ -1,354 +1,292 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Box,
-  Typography,
-  Paper,
-  Grid,
-  Card,
-  CardContent,
-  Button,
-  TextField,
-  MenuItem,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
-  alpha,
-  useTheme,
-  Divider
+  Box, Typography, Paper, Grid, Card, CardContent, Button, TextField,
+  MenuItem, Table, TableBody, TableCell, TableContainer, TableHead,
+  TableRow, Chip, alpha, useTheme, CircularProgress, Tabs, Tab
 } from '@mui/material';
 import {
-  Download,
-  Print,
-  TrendingUp,
-  TrendingDown,
-  CalendarToday,
-  AttachMoney,
-  Inventory,
-  People
+  Download, Print, TrendingUp, CalendarToday, AttachMoney, Inventory, Refresh
 } from '@mui/icons-material';
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import api from '../../services/api';
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div role="tabpanel" hidden={value !== index} {...other}>
+      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+    </div>
+  );
+}
 
 export default function ReportsEnhanced() {
   const theme = useTheme();
-  const [reportType, setReportType] = useState('sales');
+  const [loading, setLoading] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
   const [dateRange, setDateRange] = useState('last30days');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  
+  const [summary, setSummary] = useState({
+    totalRevenue: 0, totalProfit: 0, totalOrders: 0,
+    itemsSold: 0, avgOrderValue: 0, profitMargin: 0
+  });
+  
+  const [salesData, setSalesData] = useState<any[]>([]);
+  const [inventoryData, setInventoryData] = useState<any[]>([]);
+  const [categoryPerformance, setCategoryPerformance] = useState<any[]>([]);
 
-  // Sample report data
-  const salesData = [
-    { date: '2025-10-01', sales: 4500, orders: 12 },
-    { date: '2025-10-08', sales: 5200, orders: 15 },
-    { date: '2025-10-15', sales: 4800, orders: 13 },
-    { date: '2025-10-22', sales: 6100, orders: 18 },
-    { date: '2025-10-26', sales: 5500, orders: 16 },
-  ];
+  useEffect(() => { initializeDates(); }, [dateRange]);
+  useEffect(() => { if (startDate && endDate) { fetchReportData(); } }, [startDate, endDate]);
 
-  const topProducts = [
-    { name: 'Product A', sold: 145, revenue: 14500, profit: 4350 },
-    { name: 'Product B', sold: 128, revenue: 12800, profit: 3840 },
-    { name: 'Product C', sold: 102, revenue: 10200, profit: 3060 },
-    { name: 'Product D', sold: 95, revenue: 9500, profit: 2850 },
-    { name: 'Product E', sold: 87, revenue: 8700, profit: 2610 },
-  ];
+  const initializeDates = () => {
+    let end = new Date();
+    let start = new Date();
+    
+    if (dateRange === 'today') start = new Date();
+    else if (dateRange === 'yesterday') {
+      start = new Date(end); start.setDate(start.getDate() - 1);
+      end = new Date(); end.setDate(end.getDate() - 1);
+    } else if (dateRange === 'last7days') start.setDate(start.getDate() - 7);
+    else if (dateRange === 'last30days') start.setDate(start.getDate() - 30);
+    else if (dateRange === 'thisMonth') start = new Date(end.getFullYear(), end.getMonth(), 1);
+    else if (dateRange === 'lastMonth') {
+      start = new Date(end.getFullYear(), end.getMonth() - 1, 1);
+      end = new Date(end.getFullYear(), end.getMonth(), 0);
+    } else if (dateRange === 'last3months') start.setMonth(start.getMonth() - 3);
+    else if (dateRange === 'last6months') start.setMonth(start.getMonth() - 6);
+    else if (dateRange === 'thisYear') start = new Date(end.getFullYear(), 0, 1);
+    
+    setStartDate(start.toISOString());
+    setEndDate(end.toISOString());
+  };
 
-  const summary = [
-    {
-      title: 'Total Revenue',
-      value: '$52,900',
-      change: '+15.3%',
-      trend: 'up',
-      icon: <AttachMoney />,
-      color: '#43e97b'
-    },
-    {
-      title: 'Total Orders',
-      value: '74',
-      change: '+12.1%',
-      trend: 'up',
-      icon: <TrendingUp />,
-      color: '#667eea'
-    },
-    {
-      title: 'Products Sold',
-      value: '557',
-      change: '+8.5%',
-      trend: 'up',
-      icon: <Inventory />,
-      color: '#f093fb'
-    },
-    {
-      title: 'New Customers',
-      value: '28',
-      change: '+22.4%',
-      trend: 'up',
-      icon: <People />,
-      color: '#4facfe'
-    },
-  ];
+  const fetchReportData = async () => {
+    try {
+      setLoading(true);
+      const [summaryRes, salesRes, inventoryRes, categoryRes] = await Promise.all([
+        api.get('/reports/summary?startDate=' + startDate + '&endDate=' + endDate),
+        api.get('/reports/sales?startDate=' + startDate + '&endDate=' + endDate),
+        api.get('/reports/inventory'),
+        api.get('/reports/category-performance?startDate=' + startDate + '&endDate=' + endDate)
+      ]);
+      
+      setSummary(summaryRes.data || {});
+      setSalesData(salesRes.data || []);
+      setInventoryData(inventoryRes.data || []);
+      setCategoryPerformance(categoryRes.data || []);
+    } catch (error) {
+      console.error('Error fetching report data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrint = () => { window.print(); };
+
+  const handleExport = (type: string) => {
+    let data: any[] = [];
+    let filename = '';
+    
+    if (type === 'sales') { data = salesData; filename = 'sales-report.csv'; }
+    else if (type === 'inventory') { data = inventoryData; filename = 'inventory-report.csv'; }
+    else if (type === 'category') { data = categoryPerformance; filename = 'category-performance.csv'; }
+    
+    if (data.length === 0) { alert('No data to export'); return; }
+    
+    const headers = Object.keys(data[0]).join(',');
+    const rows = data.map(row => Object.values(row).join(',')).join('\n');
+    const csv = headers + '\n' + rows;
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    window.URL.revokeObjectURL(url);
+  };
 
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Box>
-          <Typography 
-            variant="h3" 
-            gutterBottom 
-            sx={{ 
-              fontWeight: 700,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              mb: 1
-            }}
-          >
+          <Typography variant="h3" gutterBottom sx={{ fontWeight: 700, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', mb: 1 }}>
             Business Reports
           </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Generate and analyze comprehensive business reports
-          </Typography>
+          <Typography variant="body1" color="text.secondary">Generate and analyze comprehensive business reports</Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button 
-            variant="outlined" 
-            startIcon={<Print />}
-            sx={{ fontWeight: 600 }}
-          >
-            Print
-          </Button>
-          <Button 
-            variant="contained" 
-            startIcon={<Download />}
-            sx={{ 
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              fontWeight: 600
-            }}
-          >
-            Export
-          </Button>
+          <Button variant="outlined" startIcon={loading ? <CircularProgress size={20} /> : <Refresh />} onClick={fetchReportData} disabled={loading} sx={{ fontWeight: 600 }}>Refresh</Button>
+          <Button variant="outlined" startIcon={<Print />} onClick={handlePrint} sx={{ fontWeight: 600 }}>Print</Button>
+          <Button variant="contained" startIcon={<Download />} onClick={() => handleExport(['sales', 'inventory', 'category'][tabValue])} sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', fontWeight: 600 }}>Export CSV</Button>
         </Box>
       </Box>
 
-      {/* Filters */}
       <Paper sx={{ p: 3, mb: 4 }}>
-        <Grid container spacing={3}>
+        <Grid container spacing={3} alignItems="center">
           <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              select
-              label="Report Type"
-              value={reportType}
-              onChange={(e) => setReportType(e.target.value)}
-            >
-              <MenuItem value="sales">Sales Report</MenuItem>
-              <MenuItem value="inventory">Inventory Report</MenuItem>
-              <MenuItem value="customer">Customer Report</MenuItem>
-              <MenuItem value="financial">Financial Report</MenuItem>
-            </TextField>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              select
-              label="Date Range"
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              InputProps={{
-                startAdornment: <CalendarToday sx={{ mr: 1, color: 'text.secondary' }} />,
-              }}
-            >
+            <TextField fullWidth select label="Date Range" value={dateRange} onChange={(e) => setDateRange(e.target.value)} InputProps={{ startAdornment: <CalendarToday sx={{ fontSize: 18, mr: 1, color: 'text.secondary' }} /> }}>
               <MenuItem value="today">Today</MenuItem>
+              <MenuItem value="yesterday">Yesterday</MenuItem>
               <MenuItem value="last7days">Last 7 Days</MenuItem>
               <MenuItem value="last30days">Last 30 Days</MenuItem>
-              <MenuItem value="last90days">Last 90 Days</MenuItem>
-              <MenuItem value="thisyear">This Year</MenuItem>
-              <MenuItem value="custom">Custom Range</MenuItem>
+              <MenuItem value="thisMonth">This Month</MenuItem>
+              <MenuItem value="lastMonth">Last Month</MenuItem>
+              <MenuItem value="last3months">Last 3 Months</MenuItem>
+              <MenuItem value="last6months">Last 6 Months</MenuItem>
+              <MenuItem value="thisYear">This Year</MenuItem>
             </TextField>
           </Grid>
-          <Grid item xs={12} md={4}>
-            <Button 
-              fullWidth 
-              variant="contained" 
-              sx={{ 
-                height: '100%',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                fontWeight: 600
-              }}
-            >
-              Generate Report
-            </Button>
+          <Grid item xs={12} md={8}>
+            <Typography variant="body2" color="text.secondary">
+              Showing data from {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
+            </Typography>
           </Grid>
         </Grid>
       </Paper>
 
-      {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        {summary.map((item, index) => (
-          <Grid item xs={12} sm={6} md={3} key={index}>
-            <Card sx={{
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: theme.shadows[10]
-              }
-            }}>
+        {[
+          { title: 'Total Revenue', value: summary.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), sub: summary.totalOrders + ' orders', color: '#667eea', icon: AttachMoney },
+          { title: 'Total Profit', value: summary.totalProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), sub: summary.profitMargin.toFixed(1) + '% margin', color: '#43e97b', icon: TrendingUp },
+          { title: 'Items Sold', value: summary.itemsSold.toLocaleString(), sub: 'Avg: $' + summary.avgOrderValue.toFixed(2) + '/order', color: '#f093fb', icon: Inventory }
+        ].map((card, i) => (
+          <Grid item xs={12} sm={6} md={4} key={i}>
+            <Card sx={{ background: 'linear-gradient(135deg, ' + card.color + ' 0%, #764ba2 100%)', color: 'white' }}>
               <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                  <Box sx={{ 
-                    p: 1.5, 
-                    borderRadius: 2, 
-                    bgcolor: alpha(item.color, 0.1),
-                    color: item.color,
-                    display: 'flex'
-                  }}>
-                    {item.icon}
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>{card.title}</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700, my: 1 }}>${card.value}</Typography>
+                    <Typography variant="caption">{card.sub}</Typography>
                   </Box>
-                  <Chip
-                    icon={item.trend === 'up' ? <TrendingUp fontSize="small" /> : <TrendingDown fontSize="small" />}
-                    label={item.change}
-                    color={item.trend === 'up' ? 'success' : 'error'}
-                    size="small"
-                  />
+                  <card.icon sx={{ fontSize: 48, opacity: 0.8 }} />
                 </Box>
-                <Typography variant="h4" fontWeight={700} gutterBottom>
-                  {item.value}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {item.title}
-                </Typography>
               </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
 
-      <Grid container spacing={3}>
-        {/* Sales Trend Chart */}
-        <Grid item xs={12} lg={8}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom fontWeight={600}>
-              Sales & Orders Trend
-            </Typography>
-            <Divider sx={{ mb: 3 }} />
-            <ResponsiveContainer width="100%" height={350}>
-              <LineChart data={salesData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Legend />
-                <Line 
-                  yAxisId="left"
-                  type="monotone" 
-                  dataKey="sales" 
-                  stroke="#667eea" 
-                  strokeWidth={3}
-                  name="Sales ($)"
-                />
-                <Line 
-                  yAxisId="right"
-                  type="monotone" 
-                  dataKey="orders" 
-                  stroke="#43e97b" 
-                  strokeWidth={3}
-                  name="Orders"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </Paper>
-        </Grid>
+      <Paper sx={{ borderRadius: 3, boxShadow: theme.shadows[4] }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 3, pt: 2 }}>
+          <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
+            <Tab label="Sales Report" />
+            <Tab label="Inventory Report" />
+            <Tab label="Category Performance" />
+          </Tabs>
+        </Box>
 
-        {/* Top Products Chart */}
-        <Grid item xs={12} lg={4}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom fontWeight={600}>
-              Top Products Revenue
-            </Typography>
-            <Divider sx={{ mb: 3 }} />
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={topProducts} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={80} />
-                <Tooltip />
-                <Bar dataKey="revenue" fill="#667eea" name="Revenue ($)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </Paper>
-        </Grid>
-
-        {/* Top Products Table */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom fontWeight={600}>
-              Top Performing Products
-            </Typography>
-            <Divider sx={{ mb: 3 }} />
-            <TableContainer>
-              <Table>
-                <TableHead sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 700 }}>#</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Product Name</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }} align="right">Units Sold</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }} align="right">Revenue</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }} align="right">Profit</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }} align="right">Margin</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {topProducts.map((product, index) => {
-                    const margin = ((product.profit / product.revenue) * 100).toFixed(1);
-                    return (
-                      <TableRow key={index}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight={600}>
-                            {product.name}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">{product.sold}</TableCell>
-                        <TableCell align="right">
-                          <Typography variant="body2" fontWeight={700} color="primary">
-                            ${product.revenue.toLocaleString()}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Typography variant="body2" fontWeight={700} color="success.main">
-                            ${product.profit.toLocaleString()}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Chip 
-                            label={`${margin}%`} 
-                            color="success" 
-                            size="small"
-                            sx={{ fontWeight: 600 }}
-                          />
-                        </TableCell>
+        <TabPanel value={tabValue} index={0}>
+          <Box sx={{ px: 3 }}>
+            {loading ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box> :
+            salesData.length > 0 ? (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
+                      {['Date', 'Order #', 'Product', 'Category', 'Qty', 'Revenue', 'Profit'].map(h => <TableCell key={h} align={['Qty', 'Revenue', 'Profit'].includes(h) ? 'right' : 'left'} sx={{ fontWeight: 700 }}>{h}</TableCell>)}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {salesData.slice(0, 50).map((row, i) => (
+                      <TableRow key={i} hover>
+                        <TableCell>{new Date(row.date).toLocaleDateString()}</TableCell>
+                        <TableCell><Chip label={row.orderNumber} size="small" /></TableCell>
+                        <TableCell>{row.productName}</TableCell>
+                        <TableCell><Chip label={row.categoryName} size="small" color="primary" variant="outlined" /></TableCell>
+                        <TableCell align="right">{row.quantity}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600 }}>${row.revenue.toFixed(2)}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600, color: 'success.main' }}>${row.profit.toFixed(2)}</TableCell>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        </Grid>
-      </Grid>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            ) : <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>No sales data available.</Typography>}
+          </Box>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={1}>
+          <Box sx={{ px: 3 }}>
+            {loading ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box> :
+            inventoryData.length > 0 ? (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
+                      {['Product', 'Category', 'Stock', 'Min Level', 'Value', 'Status'].map(h => <TableCell key={h} align={['Stock', 'Min Level', 'Value'].includes(h) ? 'right' : 'left'} sx={{ fontWeight: 700 }}>{h}</TableCell>)}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {inventoryData.map((row, i) => (
+                      <TableRow key={i} hover>
+                        <TableCell sx={{ fontWeight: 600 }}>{row.productName}</TableCell>
+                        <TableCell><Chip label={row.categoryName} size="small" /></TableCell>
+                        <TableCell align="right">{row.stockQuantity}</TableCell>
+                        <TableCell align="right">{row.minStockLevel}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600 }}>${row.productValue.toFixed(2)}</TableCell>
+                        <TableCell><Chip label={row.status} size="small" color={row.status === 'Critical' || row.status === 'Out of Stock' ? 'error' : row.status === 'Low Stock' ? 'warning' : 'success'} sx={{ fontWeight: 600 }} /></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            ) : <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>No inventory data available.</Typography>}
+          </Box>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={2}>
+          <Box sx={{ px: 3 }}>
+            {loading ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box> :
+            categoryPerformance.length > 0 ? (
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>Revenue & Profit by Category</Typography>
+                  <ResponsiveContainer width="100%" height={350}>
+                    <BarChart data={categoryPerformance}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="categoryName" />
+                      <YAxis tickFormatter={(v) => '$' + (v / 1000).toFixed(0) + 'k'} />
+                      <Tooltip formatter={(v: any) => '$' + v.toFixed(2)} />
+                      <Legend />
+                      <Bar dataKey="revenue" fill="#667eea" name="Revenue" radius={[8, 8, 0, 0]} />
+                      <Bar dataKey="profit" fill="#43e97b" name="Profit" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Grid>
+                <Grid item xs={12}>
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
+                          {['Category', 'Sales Count', 'Revenue', 'Profit', 'Margin %'].map(h => <TableCell key={h} align={h === 'Category' ? 'left' : 'right'} sx={{ fontWeight: 700 }}>{h}</TableCell>)}
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {categoryPerformance.map((row, i) => (
+                          <TableRow key={i} hover>
+                            <TableCell sx={{ fontWeight: 600 }}>{row.categoryName}</TableCell>
+                            <TableCell align="right">{row.salesCount}</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600 }}>${row.revenue.toFixed(2)}</TableCell>
+                            <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600 }}>${row.profit.toFixed(2)}</TableCell>
+                            <TableCell align="right"><Chip label={row.profitMargin.toFixed(1) + '%'} size="small" color={row.profitMargin >= 25 ? 'success' : 'warning'} sx={{ fontWeight: 600 }} /></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Grid>
+              </Grid>
+            ) : <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>No category performance data available.</Typography>}
+          </Box>
+        </TabPanel>
+      </Paper>
     </Box>
   );
 }

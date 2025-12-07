@@ -1,6 +1,8 @@
 package com.fascinito.pos.repository;
 
 import com.fascinito.pos.entity.CartItem;
+import com.fascinito.pos.entity.Product;
+import com.fascinito.pos.entity.ProductVariantCombination;
 import com.fascinito.pos.entity.User;
 import com.fascinito.pos.entity.VariationOption;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,6 +23,9 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     
     // Find cart item by user and product where variation option is null (for products without variations)
     Optional<CartItem> findByUserAndProductIdAndVariationOptionIsNull(User user, Long productId);
+    
+    // Find cart item by user, product and variant combination (for products with multiple variations)
+    Optional<CartItem> findByUserAndProductAndVariantCombination(User user, Product product, ProductVariantCombination variantCombination);
     
     void deleteByUser(User user);
 }

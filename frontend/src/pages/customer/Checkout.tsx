@@ -40,6 +40,8 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import PaymentModal from '../../components/PaymentModal'
+import razorpayService from '../../services/razorpayService'
+import { PaymentVerificationResponse } from '../../types/razorpay'
 
 interface CartItem {
   id: number
@@ -240,6 +242,7 @@ export default function Checkout() {
     setSubmitting(true)
     try {
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
+      console.log('Token found:', token ? 'Yes (length: ' + token.length + ')' : 'No')
 
       // Create order with PENDING status
       const response = await fetch('/api/orders/checkout', {
@@ -259,15 +262,32 @@ export default function Checkout() {
         })
       })
 
+      console.log('Order creation response status:', response.status, response.ok)
+
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Order creation failed with status', response.status, ':', errorText)
+        
+        if (response.status === 500 && errorText.includes('Access Denied')) {
+          throw new Error('Authentication failed. Please log out and log back in.')
+        }
         throw new Error('Failed to create order')
       }
 
       const order = await response.json()
+      console.log('Order created successfully:', order)
+      const orderData = order.data
 
-      // Store order data and show payment modal
-      setOrderCreated(order.data)
-      setPaymentModalOpen(true)
+      // Store order data
+      setOrderCreated(orderData)
+
+      // If Razorpay is selected, initiate Razorpay payment
+      if (paymentMethod === 'RAZORPAY') {
+        await initiateRazorpayPayment(orderData)
+      } else {
+        // For other payment methods, show the existing payment modal
+        setPaymentModalOpen(true)
+      }
 
     } catch (error) {
       console.error('Error placing order:', error)
@@ -275,6 +295,77 @@ export default function Checkout() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const initiateRazorpayPayment = async (orderData: any) => {
+    try {
+      // Create Razorpay order
+      const razorpayOrderData = await razorpayService.createOrder(orderData.id)
+
+      // Display Razorpay checkout
+      await razorpayService.displayRazorpay(
+        razorpayOrderData,
+        (response: PaymentVerificationResponse) => {
+          // Payment successful
+          handleRazorpaySuccess(response)
+        },
+        (error: any) => {
+          // Payment failed
+          handleRazorpayFailure(error)
+        }
+      )
+    } catch (error) {
+      console.error('Error initiating Razorpay payment:', error)
+      toast.error('Failed to initiate payment. Please try again.')
+    }
+  }
+
+  const handleRazorpaySuccess = async (response: PaymentVerificationResponse) => {
+    try {
+      // Clear cart after successful payment
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
+      
+      try {
+        await fetch('/api/cart', {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+      } catch (error) {
+        console.warn('Failed to clear cart, but order was confirmed:', error)
+      }
+
+      // Dispatch event to update cart count in UI
+      window.dispatchEvent(new CustomEvent('cartUpdated'))
+
+      toast.success('Payment successful! Order confirmed.')
+
+      // Navigate to order success page
+      navigate(`/order-success/${response.orderId}`)
+    } catch (error) {
+      console.error('Error handling Razorpay success:', error)
+      toast.error('Payment succeeded but failed to complete order. Please contact support.')
+    }
+  }
+
+  const handleRazorpayFailure = async (error: any) => {
+    console.error('Razorpay payment failed:', error)
+    
+    // Notify backend about payment failure
+    if (orderCreated) {
+      try {
+        await razorpayService.handlePaymentFailure(
+          orderCreated.id, 
+          error?.description || 'Payment failed or cancelled by user'
+        )
+      } catch (err) {
+        console.error('Failed to notify backend about payment failure:', err)
+      }
+    }
+    
+    toast.error(error?.description || 'Payment failed. Please try again.')
   }
 
   const handlePaymentSuccess = async (_paymentData: any) => {
@@ -505,10 +596,12 @@ export default function Checkout() {
                         <Typography variant="body1">Subtotal:</Typography>
                         <Typography variant="body1" sx={{ fontWeight: 600 }}>${cartData.subtotal.toFixed(2)}</Typography>
                       </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body1">Tax (10%):</Typography>
-                        <Typography variant="body1" sx={{ fontWeight: 600 }}>${cartData.tax.toFixed(2)}</Typography>
-                      </Box>
+                      {cartData.tax > 0 && (
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography variant="body1">Tax:</Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>${cartData.tax.toFixed(2)}</Typography>
+                        </Box>
+                      )}
                       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                         <Typography variant="body1">Shipping:</Typography>
                         <Typography variant="body1" sx={{ fontWeight: 600 }}>${cartData.shipping.toFixed(2)}</Typography>
@@ -1000,10 +1093,11 @@ export default function Checkout() {
                       sx={{ gap: 1.5 }}
                     >
                       {[
+                        { value: 'RAZORPAY', label: 'Razorpay (UPI, Cards, Wallets)', icon: '💰' },
                         { value: 'CREDIT_CARD', label: 'Credit Card', icon: '💳' },
                         { value: 'DEBIT_CARD', label: 'Debit Card', icon: '💳' },
-                        { value: 'PAYPAL', label: 'PayPal', icon: '🅿️' },
-                        { value: 'BANK_TRANSFER', label: 'Bank Transfer', icon: '🏦' }
+                        { value: 'UPI', label: 'UPI', icon: '📱' },
+                        { value: 'CASH', label: 'Cash on Delivery', icon: '💵' }
                       ].map((option) => (
                         <Paper
                           key={option.value}
@@ -1201,10 +1295,12 @@ export default function Checkout() {
                       </Box>
                       <Chip
                         label={
+                          paymentMethod === 'RAZORPAY' ? 'Razorpay' :
                           paymentMethod === 'CREDIT_CARD' ? 'Credit Card' :
                           paymentMethod === 'DEBIT_CARD' ? 'Debit Card' :
-                          paymentMethod === 'PAYPAL' ? 'PayPal' :
-                          'Bank Transfer'
+                          paymentMethod === 'UPI' ? 'UPI' :
+                          paymentMethod === 'CASH' ? 'Cash on Delivery' :
+                          'Other'
                         }
                         sx={{
                           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -1346,10 +1442,12 @@ export default function Checkout() {
                       <Typography variant="body2" color="text.secondary">Subtotal:</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>${cartData.subtotal.toFixed(2)}</Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" color="text.secondary">Tax:</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>${cartData.tax.toFixed(2)}</Typography>
-                    </Box>
+                    {cartData.tax > 0 && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Tax:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>${cartData.tax.toFixed(2)}</Typography>
+                      </Box>
+                    )}
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="body2" color="text.secondary">Shipping:</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>${cartData.shipping.toFixed(2)}</Typography>

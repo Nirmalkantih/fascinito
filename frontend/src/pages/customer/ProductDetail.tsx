@@ -93,8 +93,6 @@ export default function ProductDetail() {
         const data = await response.json()
         // Handle both ApiResponse wrapper and direct response
         const productData = data.data || data
-        console.log('Product API Response:', productData)
-        console.log('trackInventory value:', productData.trackInventory)
 
         // Ensure trackInventory is explicitly set from API (don't override with default if API provides it)
         const finalProduct = {
@@ -102,10 +100,9 @@ export default function ProductDetail() {
           reviews: [],
           specifications: [],
           ...productData,
-          // Explicitly ensure trackInventory is boolean (true or false, not undefined)
-          trackInventory: productData.trackInventory === true ? true : false
+          // Convert trackInventory to boolean properly (handles 1, true, "true", etc.)
+          trackInventory: Boolean(productData.trackInventory)
         }
-        console.log('Final product trackInventory:', finalProduct.trackInventory)
         setProduct(finalProduct)
 
         // Wishlist status will be loaded from WishlistContext via isInWishlist()
@@ -134,22 +131,35 @@ export default function ProductDetail() {
     setLoadingVariantDetails(true)
 
     try {
-      // Fallback: Calculate price from selected options
-      const adjustment = Array.from(selectedVariations.values()).reduce((sum, opt) => {
-        return sum + (opt.priceAdjustment || 0)
-      }, 0)
-
-      setSelectedVariantCombination({
-        id: Array.from(selectedVariations.values())
-          .map(v => v.id)
-          .join('-'),
-        price: (product.regularPrice || product.price || 0) + adjustment,
-        stockQuantity: selectedVariantCombination?.stockQuantity || 100
+      // Get selected variation option IDs
+      const selectedOptionIds = Array.from(selectedVariations.values()).map(opt => opt.id)
+      
+      // Find matching variant combination from product data
+      const matchingCombination = product.variantCombinations?.find((combo: any) => {
+        // The API returns optionIds array directly
+        const comboOptionIds = combo.optionIds || []
+        return selectedOptionIds.length === comboOptionIds.length &&
+               selectedOptionIds.every(id => comboOptionIds.includes(id))
       })
+
+      if (matchingCombination) {
+        setSelectedVariantCombination(matchingCombination)
+      } else {
+        // Fallback: Calculate price from selected options
+        const adjustment = Array.from(selectedVariations.values()).reduce((sum, opt) => {
+          return sum + (opt.priceAdjustment || 0)
+        }, 0)
+
+        setSelectedVariantCombination({
+          id: null, // No actual combination found
+          price: (product.regularPrice || product.price || 0) + adjustment,
+          stock: null // Unknown stock
+        })
+      }
     } finally {
       setLoadingVariantDetails(false)
     }
-  }, [selectedVariations, product?.variations, product?.regularPrice, product?.price])
+  }, [selectedVariations, product?.variations, product?.variantCombinations, product?.regularPrice, product?.price])
 
   if (loading) {
     return (
@@ -221,12 +231,41 @@ export default function ProductDetail() {
   // Helper function to check if product has stock
   // Respects inventory tracking flag and prioritizes variation stock
   const hasStock = () => {
+    if (!product) {
+      return false;
+    }
+
     // If inventory tracking is disabled, always in stock
     if (!product.trackInventory) {
       return true;
     }
 
-    // If product has variations, check selected variation stock
+    // If product has variations and all are selected, check variant combination stock
+    if (product.variations && product.variations.length > 0 && allVariationsSelected) {
+      if (selectedVariantCombination) {
+        const stock = selectedVariantCombination.stock || selectedVariantCombination.stockQuantity
+        // If combination exists and has stock defined, use it
+        if (stock != null && stock > 0) {
+          return true;
+        }
+        // If combination exists but stock is null/undefined/0, check selected options as fallback
+        if (stock == null) {
+          // Check if all selected variation options have stock
+          const allSelectedHaveStock = Array.from(selectedVariations.values()).every((option: any) =>
+            option.stockQuantity != null && option.stockQuantity > 0
+          );
+          return allSelectedHaveStock;
+        }
+        return false; // Combination has stock = 0
+      }
+      // No combination found - check if selected options have stock
+      const allSelectedHaveStock = Array.from(selectedVariations.values()).every((option: any) =>
+        option.stockQuantity != null && option.stockQuantity > 0
+      );
+      return allSelectedHaveStock;
+    }
+
+    // If product has variations but not all selected
     if (product.variations && product.variations.length > 0) {
       if (selectedVariations.size === 0) {
         // No variations selected yet - check if ANY variation option has stock
@@ -236,7 +275,7 @@ export default function ProductDetail() {
           )
         );
       } else {
-        // Variations selected - check if ALL selected options have stock
+        // Some variations selected - check if ALL selected options have stock
         return Array.from(selectedVariations.values()).every((option: any) =>
           option.stockQuantity && option.stockQuantity > 0
         );
@@ -920,6 +959,14 @@ export default function ProductDetail() {
                   }
                   onClick={async () => {
                     try {
+                      // Check if user is logged in
+                      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
+                      if (!token) {
+                        toast.error('Please log in to add items to cart')
+                        navigate('/login')
+                        return
+                      }
+
                       // Check if variations exist and all are selected
                       if (product.variations && product.variations.length > 0 && !allVariationsSelected) {
                         toast.error('Please select all variations')
@@ -951,7 +998,6 @@ export default function ProductDetail() {
                         }
                       }
 
-                      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
                       const headers: Record<string, string> = {
                         'Content-Type': 'application/json'
                       }
@@ -960,16 +1006,30 @@ export default function ProductDetail() {
                         headers['Authorization'] = `Bearer ${token}`
                       }
 
+                      // Determine what to send based on product variations
+                      let requestBody: any = {
+                        productId: product.id,
+                        quantity: quantity
+                      }
+
+                      // If product has multiple variations and all are selected, send variantCombinationId
+                      if (product.variations && product.variations.length > 0 && allVariationsSelected) {
+                        if (selectedVariantCombination?.id) {
+                          requestBody.variantCombinationId = selectedVariantCombination.id
+                        } else {
+                          // No valid combination found - should not happen if validation is correct
+                          toast.error('Unable to find the selected variant combination. Please try again.')
+                          return
+                        }
+                      } else if (selectedVariations.size > 0) {
+                        // Single variation selected (backward compatibility)
+                        requestBody.variationId = Array.from(selectedVariations.values())[0].id
+                      }
+
                       const response = await fetch('/api/cart/items', {
                         method: 'POST',
                         headers,
-                        body: JSON.stringify({
-                          productId: product.id,
-                          variationId: selectedVariations.size > 0 
-                            ? Array.from(selectedVariations.values())[0].id 
-                            : null,
-                          quantity: quantity
-                        })
+                        body: JSON.stringify(requestBody)
                       })
 
                       console.log('Add to cart response status:', response)
@@ -982,19 +1042,13 @@ export default function ProductDetail() {
                         localStorage.removeItem('refreshToken')
                         localStorage.removeItem('user')
                         
-                        // Retry without token (guest mode)
+                        // Retry without token (guest mode) - reuse the same requestBody
                         const retryResponse = await fetch('/api/cart/items', {
                           method: 'POST',
                           headers: {
                             'Content-Type': 'application/json'
                           },
-                          body: JSON.stringify({
-                            productId: product.id,
-                            variationId: selectedVariations.size > 0 
-                              ? Array.from(selectedVariations.values())[0].id 
-                              : null,
-                            quantity: quantity
-                          })
+                          body: JSON.stringify(requestBody)
                         })
 
                         if (retryResponse.ok) {

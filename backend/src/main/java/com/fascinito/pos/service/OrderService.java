@@ -8,6 +8,7 @@ import com.fascinito.pos.repository.OrderRepository;
 import com.fascinito.pos.repository.OrderItemRepository;
 import com.fascinito.pos.repository.CartItemRepository;
 import com.fascinito.pos.repository.ProductRepository;
+import com.fascinito.pos.repository.ProductVariantCombinationRepository;
 import com.fascinito.pos.repository.VariationOptionRepository;
 import com.fascinito.pos.repository.UserRepository;
 import com.fascinito.pos.repository.PaymentRepository;
@@ -33,6 +34,7 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
+    private final ProductVariantCombinationRepository variantCombinationRepository;
     private final VariationOptionRepository variationOptionRepository;
     private final UserRepository userRepository;
     private final PaymentRepository paymentRepository;
@@ -86,16 +88,27 @@ public class OrderService {
         // Create order items and DEDUCT STOCK
         for (CartItem cartItem : cartItems) {
             Product product = cartItem.getProduct();
-            BigDecimal price = product.getSalePrice() != null ? product.getSalePrice() : product.getRegularPrice();
+            ProductVariantCombination variantCombination = cartItem.getVariantCombination();
+            VariationOption variationOption = cartItem.getVariationOption();
+            
+            // Determine price from variant combination, product sale price, or regular price
+            BigDecimal price;
+            if (variantCombination != null && variantCombination.getPrice() != null) {
+                price = variantCombination.getPrice();
+            } else {
+                price = product.getSalePrice() != null ? product.getSalePrice() : product.getRegularPrice();
+            }
+            
             BigDecimal itemSubtotal = price.multiply(new BigDecimal(cartItem.getQuantity()));
 
-            // CRITICAL: Deduct stock from product or variation option
-            deductStock(product, cartItem.getVariationOption(), cartItem.getQuantity());
+            // CRITICAL: Deduct stock from variant combination, variation option, or product
+            deductStock(product, variantCombination, variationOption, cartItem.getQuantity());
 
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .product(product)
-                    .variationOption(cartItem.getVariationOption())
+                    .variationOption(variationOption)
+                    .variantCombination(variantCombination)
                     .quantity(cartItem.getQuantity())
                     .unitPrice(price)
                     .subtotal(itemSubtotal)
@@ -107,7 +120,10 @@ public class OrderService {
             subtotal = subtotal.add(itemSubtotal);
             taxAmount = taxAmount.add(itemSubtotal.multiply(new BigDecimal("0.10")));
 
-            log.info("Created order item for product {} with quantity {}", product.getId(), cartItem.getQuantity());
+            log.info("Created order item for product {} with quantity {}, variantCombination: {}, variationOption: {}", 
+                    product.getId(), cartItem.getQuantity(), 
+                    variantCombination != null ? variantCombination.getId() : "null",
+                    variationOption != null ? variationOption.getId() : "null");
         }
 
         // Calculate totals
@@ -149,7 +165,17 @@ public class OrderService {
             Product product = cartItem.getProduct();
 
             if (product.getTrackInventory()) {
-                if (cartItem.getVariationOption() != null) {
+                if (cartItem.getVariantCombination() != null) {
+                    // Check variant combination stock (highest priority)
+                    Integer availableStock = cartItem.getVariantCombination().getStock();
+                    if (availableStock == null || availableStock < cartItem.getQuantity()) {
+                        throw new IllegalArgumentException(
+                                "Insufficient stock for " + product.getTitle() +
+                                        " - " + cartItem.getVariantCombination().getCombinationName() +
+                                        ". Available: " + (availableStock != null ? availableStock : 0)
+                        );
+                    }
+                } else if (cartItem.getVariationOption() != null) {
                     // Check variation option stock
                     if (cartItem.getVariationOption().getStockQuantity() < cartItem.getQuantity()) {
                         throw new IllegalArgumentException(
@@ -171,14 +197,36 @@ public class OrderService {
     }
 
     /**
-     * CRITICAL: Deduct stock from product or variation option
+     * CRITICAL: Deduct stock from variant combination, variation option, or product
      */
-    private void deductStock(Product product, VariationOption variationOption, Integer quantity) {
+    private void deductStock(Product product, ProductVariantCombination variantCombination, 
+                            VariationOption variationOption, Integer quantity) {
         if (!product.getTrackInventory()) {
             return; // Skip if inventory tracking is disabled
         }
 
-        if (variationOption != null) {
+        if (variantCombination != null) {
+            // Deduct from variant combination stock (highest priority)
+            Integer currentStock = variantCombination.getStock();
+            variantCombination.setStock(currentStock - quantity);
+            variantCombinationRepository.save(variantCombination);
+            log.info("Deducted {} units from variant combination {} stock. New stock: {}",
+                    quantity, variantCombination.getId(), variantCombination.getStock());
+            
+            // CRITICAL FIX: Also deduct from individual variation options that make up this combination
+            if (variantCombination.getOptions() != null && !variantCombination.getOptions().isEmpty()) {
+                for (ProductVariantCombinationOption combinationOption : variantCombination.getOptions()) {
+                    VariationOption option = combinationOption.getVariationOption();
+                    if (option != null) {
+                        Integer optionStock = option.getStockQuantity();
+                        option.setStockQuantity(optionStock - quantity);
+                        variationOptionRepository.save(option);
+                        log.info("Deducted {} units from variation option {} ({}) stock. New stock: {}",
+                                quantity, option.getId(), option.getName(), option.getStockQuantity());
+                    }
+                }
+            }
+        } else if (variationOption != null) {
             // Deduct from variation option stock
             Integer currentStock = variationOption.getStockQuantity();
             variationOption.setStockQuantity(currentStock - quantity);
@@ -266,6 +314,17 @@ public class OrderService {
     }
 
     /**
+     * Get all orders (Admin only)
+     * Supports pagination and returns all orders in the system
+     */
+    @Transactional(readOnly = true)
+    public Page<OrderResponse> getAllOrders(Pageable pageable) {
+        log.debug("Fetching all orders with pagination");
+        return orderRepository.findAll(pageable)
+                .map(this::mapToResponse);
+    }
+
+    /**
      * Update order status (admin only)
      */
     @Transactional
@@ -295,7 +354,7 @@ public class OrderService {
 
         // Restore stock for all items
         for (OrderItem item : order.getItems()) {
-            restoreStock(item.getProduct(), item.getVariationOption(), item.getQuantity());
+            restoreStock(item.getProduct(), item.getVariantCombination(), item.getVariationOption(), item.getQuantity());
         }
 
         order.setStatus(Order.OrderStatus.CANCELLED);
@@ -307,12 +366,33 @@ public class OrderService {
     /**
      * Restore stock when order is cancelled
      */
-    private void restoreStock(Product product, VariationOption variationOption, Integer quantity) {
+    private void restoreStock(Product product, ProductVariantCombination variantCombination,
+                             VariationOption variationOption, Integer quantity) {
         if (!product.getTrackInventory()) {
             return;
         }
 
-        if (variationOption != null) {
+        if (variantCombination != null) {
+            Integer currentStock = variantCombination.getStock();
+            variantCombination.setStock(currentStock + quantity);
+            variantCombinationRepository.save(variantCombination);
+            log.info("Restored {} units to variant combination {} stock. New stock: {}",
+                    quantity, variantCombination.getId(), variantCombination.getStock());
+            
+            // CRITICAL FIX: Also restore stock to individual variation options that make up this combination
+            if (variantCombination.getOptions() != null && !variantCombination.getOptions().isEmpty()) {
+                for (ProductVariantCombinationOption combinationOption : variantCombination.getOptions()) {
+                    VariationOption option = combinationOption.getVariationOption();
+                    if (option != null) {
+                        Integer optionStock = option.getStockQuantity();
+                        option.setStockQuantity(optionStock + quantity);
+                        variationOptionRepository.save(option);
+                        log.info("Restored {} units to variation option {} ({}) stock. New stock: {}",
+                                quantity, option.getId(), option.getName(), option.getStockQuantity());
+                    }
+                }
+            }
+        } else if (variationOption != null) {
             Integer currentStock = variationOption.getStockQuantity();
             variationOption.setStockQuantity(currentStock + quantity);
             variationOptionRepository.save(variationOption);

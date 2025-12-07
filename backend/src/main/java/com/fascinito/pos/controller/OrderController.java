@@ -33,7 +33,7 @@ public class OrderController {
      * Body: {shippingAddress, billingAddress, notes, discount, paymentMethod}
      */
     @PostMapping("/checkout")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<OrderResponse>> checkout(
             @RequestBody CheckoutRequest checkoutRequest) {
         Long userId = getCurrentUserId();
@@ -110,6 +110,32 @@ public class OrderController {
     }
 
     /**
+     * Get all orders (Admin only)
+     * GET /api/orders/admin/all
+     * Parameters: page, size
+     */
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getAllOrders(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<OrderResponse> orders = orderService.getAllOrders(pageable);
+
+        PageResponse<OrderResponse> pageResponse = PageResponse.<OrderResponse>builder()
+                .content(orders.getContent())
+                .pageNumber(orders.getNumber())
+                .pageSize(orders.getSize())
+                .totalElements(orders.getTotalElements())
+                .totalPages(orders.getTotalPages())
+                .first(orders.isFirst())
+                .last(orders.isLast())
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success(pageResponse));
+    }
+
+    /**
      * Update order status (Admin only)
      * PUT /api/orders/{orderId}/status
      * Body: {status}
@@ -140,7 +166,9 @@ public class OrderController {
      */
     private Long getCurrentUserId() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        // Try to find user by email or phone (username could be either)
         User user = userRepository.findByEmail(username)
+                .or(() -> userRepository.findByPhone(username))
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         return user.getId();
     }

@@ -24,7 +24,6 @@ import {
   LocationOn as LocationIcon,
   ShoppingCart,
   People,
-  Assessment,
   Logout,
   AdminPanelSettings,
   Summarize,
@@ -60,7 +59,6 @@ export default function AdminLayout() {
     { text: 'Customers', icon: <People />, path: '/admin/customers', permission: 'view_customers' },
     { text: 'Staff', icon: <AdminPanelSettings />, path: '/admin/staff', permission: 'view_staff' },
     { text: 'Reports', icon: <Summarize />, path: '/admin/reports', permission: 'view_reports' },
-    { text: 'Analytics', icon: <Assessment />, path: '/admin/analytics', permission: 'view_analytics' },
   ]
 
   // Filter menu items based on user permissions

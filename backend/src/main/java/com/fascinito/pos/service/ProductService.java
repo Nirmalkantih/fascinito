@@ -577,6 +577,26 @@ public class ProductService {
                     .collect(Collectors.toList()));
         }
 
+        // Map variant combinations
+        if (product.getVariantCombinations() != null && !product.getVariantCombinations().isEmpty()) {
+            response.setVariantCombinations(product.getVariantCombinations().stream()
+                    .map(comb -> {
+                        List<Long> optionIds = comb.getOptions().stream()
+                                .map(opt -> opt.getVariationOption().getId())
+                                .collect(Collectors.toList());
+                        
+                        return com.fascinito.pos.dto.product.VariantCombinationResponse.builder()
+                                .id(comb.getId())
+                                .price(comb.getPrice())
+                                .stock(comb.getStock())
+                                .active(comb.getActive())
+                                .optionIds(optionIds)
+                                .combinationName(comb.getCombinationName())
+                                .build();
+                    })
+                    .collect(Collectors.toList()));
+        }
+
         return response;
     }
 }

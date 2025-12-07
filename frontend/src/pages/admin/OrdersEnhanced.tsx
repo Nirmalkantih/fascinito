@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -19,7 +19,8 @@ import {
   alpha,
   useTheme,
   IconButton,
-  Tooltip
+  Tooltip,
+  CircularProgress
 } from '@mui/material';
 import {
   Search,
@@ -29,78 +30,47 @@ import {
   LocalShipping,
   Cancel,
   Visibility,
-  AttachMoney
+  AttachMoney,
+  Refresh
 } from '@mui/icons-material';
+import api from '../../services/api';
 
 interface Order {
   id: number;
   orderNumber: string;
-  customerName: string;
-  customerEmail: string;
-  items: number;
-  total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  date: string;
+  userFirstName: string;
+  userLastName: string;
+  userEmail: string;
+  items: any[];
+  totalAmount: number;
+  status: string;
+  createdAtTimestamp: number;
 }
 
 export default function OrdersEnhanced() {
   const theme = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Sample orders data (in production, this would come from API)
-  const [orders] = useState<Order[]>([
-    {
-      id: 1,
-      orderNumber: 'ORD-2025-001',
-      customerName: 'John Doe',
-      customerEmail: 'john@example.com',
-      items: 3,
-      total: 299.99,
-      status: 'delivered',
-      date: '2025-10-20'
-    },
-    {
-      id: 2,
-      orderNumber: 'ORD-2025-002',
-      customerName: 'Jane Smith',
-      customerEmail: 'jane@example.com',
-      items: 5,
-      total: 549.50,
-      status: 'shipped',
-      date: '2025-10-22'
-    },
-    {
-      id: 3,
-      orderNumber: 'ORD-2025-003',
-      customerName: 'Bob Johnson',
-      customerEmail: 'bob@example.com',
-      items: 2,
-      total: 159.99,
-      status: 'processing',
-      date: '2025-10-24'
-    },
-    {
-      id: 4,
-      orderNumber: 'ORD-2025-004',
-      customerName: 'Alice Brown',
-      customerEmail: 'alice@example.com',
-      items: 1,
-      total: 89.99,
-      status: 'pending',
-      date: '2025-10-25'
-    },
-    {
-      id: 5,
-      orderNumber: 'ORD-2025-005',
-      customerName: 'Charlie Wilson',
-      customerEmail: 'charlie@example.com',
-      items: 4,
-      total: 399.99,
-      status: 'cancelled',
-      date: '2025-10-23'
-    },
-  ]);
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/orders/admin/all?size=100');
+      const fetchedOrders = response.data.content || [];
+      setOrders(fetchedOrders);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -135,12 +105,14 @@ export default function OrdersEnhanced() {
   };
 
   const filteredOrders = orders.filter(order => {
+    const customerName = `${order.userFirstName} ${order.userLastName}`;
     const matchesSearch = 
       order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerEmail?.toLowerCase().includes(searchTerm.toLowerCase());
+      customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.userEmail?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    const orderStatus = order.status?.toLowerCase();
+    const matchesStatus = statusFilter === 'all' || orderStatus === statusFilter.toLowerCase();
     
     return matchesSearch && matchesStatus;
   });
@@ -154,25 +126,25 @@ export default function OrdersEnhanced() {
     },
     {
       title: 'Pending',
-      value: orders.filter(o => o.status === 'pending').length,
+      value: orders.filter(o => o.status?.toLowerCase() === 'pending').length,
       icon: <ShoppingCart />,
       color: '#9e9e9e'
     },
     {
       title: 'Processing',
-      value: orders.filter(o => o.status === 'processing').length,
+      value: orders.filter(o => o.status?.toLowerCase() === 'processing').length,
       icon: <ShoppingCart />,
       color: '#ff9800'
     },
     {
       title: 'Delivered',
-      value: orders.filter(o => o.status === 'delivered').length,
+      value: orders.filter(o => o.status?.toLowerCase() === 'delivered').length,
       icon: <CheckCircle />,
       color: '#43e97b'
     },
     {
       title: 'Total Revenue',
-      value: `$${orders.reduce((sum, o) => o.status !== 'cancelled' ? sum + o.total : sum, 0).toFixed(2)}`,
+      value: `$${orders.reduce((sum, o) => o.status?.toLowerCase() !== 'cancelled' ? sum + (o.totalAmount || 0) : sum, 0).toFixed(2)}`,
       icon: <AttachMoney />,
       color: '#f093fb'
     },
@@ -180,19 +152,33 @@ export default function OrdersEnhanced() {
 
   return (
     <Box>
-      <Typography 
-        variant="h3" 
-        gutterBottom 
-        sx={{ 
-          fontWeight: 700,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          mb: 1
-        }}
-      >
-        Orders Management
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Typography 
+          variant="h3" 
+          sx={{ 
+            fontWeight: 700,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          }}
+        >
+          Orders Management
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Refresh />}
+          onClick={fetchOrders}
+          disabled={loading}
+          sx={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            px: 3,
+            py: 1.5,
+            fontWeight: 600
+          }}
+        >
+          {loading ? 'Loading...' : 'Refresh'}
+        </Button>
+      </Box>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
         Track and manage all customer orders
       </Typography>
@@ -236,8 +222,8 @@ export default function OrdersEnhanced() {
 
       {/* Filters */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={6}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Box sx={{ flex: '1 1 300px', minWidth: '250px' }}>
             <TextField
               fullWidth
               placeholder="Search by order number, customer name, or email..."
@@ -251,51 +237,54 @@ export default function OrdersEnhanced() {
                 ),
               }}
             />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <Button
-                variant={statusFilter === 'all' ? 'contained' : 'outlined'}
-                onClick={() => setStatusFilter('all')}
-                startIcon={<FilterList />}
-                size="small"
-              >
-                All
-              </Button>
-              <Button
-                variant={statusFilter === 'pending' ? 'contained' : 'outlined'}
-                onClick={() => setStatusFilter('pending')}
-                size="small"
-              >
-                Pending
-              </Button>
-              <Button
-                variant={statusFilter === 'processing' ? 'contained' : 'outlined'}
-                onClick={() => setStatusFilter('processing')}
-                size="small"
-                color="warning"
-              >
-                Processing
-              </Button>
-              <Button
-                variant={statusFilter === 'shipped' ? 'contained' : 'outlined'}
-                onClick={() => setStatusFilter('shipped')}
-                size="small"
-                color="info"
-              >
-                Shipped
-              </Button>
-              <Button
-                variant={statusFilter === 'delivered' ? 'contained' : 'outlined'}
-                onClick={() => setStatusFilter('delivered')}
-                size="small"
-                color="success"
-              >
-                Delivered
-              </Button>
-            </Box>
-          </Grid>
-        </Grid>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'nowrap', alignItems: 'center', overflowX: 'auto', minWidth: 0 }}>
+            <Button
+              variant={statusFilter === 'all' ? 'contained' : 'outlined'}
+              onClick={() => setStatusFilter('all')}
+              startIcon={<FilterList />}
+              size="small"
+              sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              All
+            </Button>
+            <Button
+              variant={statusFilter === 'pending' ? 'contained' : 'outlined'}
+              onClick={() => setStatusFilter('pending')}
+              size="small"
+              sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              Pending
+            </Button>
+            <Button
+              variant={statusFilter === 'processing' ? 'contained' : 'outlined'}
+              onClick={() => setStatusFilter('processing')}
+              size="small"
+              color="warning"
+              sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              Processing
+            </Button>
+            <Button
+              variant={statusFilter === 'shipped' ? 'contained' : 'outlined'}
+              onClick={() => setStatusFilter('shipped')}
+              size="small"
+              color="info"
+              sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              Shipped
+            </Button>
+            <Button
+              variant={statusFilter === 'delivered' ? 'contained' : 'outlined'}
+              onClick={() => setStatusFilter('delivered')}
+              size="small"
+              color="success"
+              sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              Delivered
+            </Button>
+          </Box>
+        </Box>
       </Paper>
 
       {/* Orders Table */}
@@ -339,29 +328,29 @@ export default function OrdersEnhanced() {
                   <TableCell>
                     <Box>
                       <Typography variant="body2" fontWeight={600}>
-                        {order.customerName}
+                        {order.userFirstName} {order.userLastName}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {order.customerEmail}
+                        {order.userEmail}
                       </Typography>
                     </Box>
                   </TableCell>
-                  <TableCell>{order.items}</TableCell>
+                  <TableCell>{order.items?.length || 0}</TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight={700} color="primary">
-                      ${order.total.toFixed(2)}
+                      ${(order.totalAmount || 0).toFixed(2)}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Chip
                       {...(getStatusIcon(order.status) && { icon: getStatusIcon(order.status)! })}
-                      label={order.status.toUpperCase()}
+                      label={order.status?.toUpperCase() || 'UNKNOWN'}
                       color={getStatusColor(order.status) as any}
                       size="small"
                       sx={{ fontWeight: 600 }}
                     />
                   </TableCell>
-                  <TableCell>{order.date}</TableCell>
+                  <TableCell>{new Date(order.createdAtTimestamp).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <Tooltip title="View Details">
                       <IconButton size="small" color="primary">

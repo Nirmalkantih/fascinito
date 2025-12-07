@@ -36,6 +36,10 @@ public class CartItem {
     @JoinColumn(name = "variation_option_id")
     private VariationOption variationOption;
 
+    @ManyToOne
+    @JoinColumn(name = "variant_combination_id")
+    private ProductVariantCombination variantCombination;
+
     @Column(nullable = false)
     private Integer quantity = 1;
 

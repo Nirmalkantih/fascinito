@@ -5,11 +5,13 @@ import com.fascinito.pos.dto.cart.CartItemResponse;
 import com.fascinito.pos.dto.cart.CartResponse;
 import com.fascinito.pos.entity.CartItem;
 import com.fascinito.pos.entity.Product;
+import com.fascinito.pos.entity.ProductVariantCombination;
 import com.fascinito.pos.entity.VariationOption;
 import com.fascinito.pos.entity.User;
 import com.fascinito.pos.exception.ResourceNotFoundException;
 import com.fascinito.pos.repository.CartItemRepository;
 import com.fascinito.pos.repository.ProductRepository;
+import com.fascinito.pos.repository.ProductVariantCombinationRepository;
 import com.fascinito.pos.repository.VariationOptionRepository;
 import com.fascinito.pos.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ public class CartService {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final VariationOptionRepository variationOptionRepository;
+    private final ProductVariantCombinationRepository variantCombinationRepository;
     private final UserRepository userRepository;
 
     /**
@@ -47,15 +50,50 @@ public class CartService {
             throw new IllegalArgumentException("Quantity must be greater than 0");
         }
 
-        // Check if item already in cart (consider variation option)
+        // Check if item already in cart (consider variation option or variant combination)
         Optional<CartItem> existingItem;
         VariationOption variationOption = null;
+        ProductVariantCombination variantCombination = null;
         
-        if (request.getVariationId() != null) {
+        // Priority: variantCombinationId > variationId > null
+        if (request.getVariantCombinationId() != null) {
+            // Handle variant combination (for products with multiple variations)
+            variantCombination = variantCombinationRepository.findById(request.getVariantCombinationId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Variant combination not found"));
+            
+            // Verify the combination belongs to this product
+            if (!variantCombination.getProduct().getId().equals(request.getProductId())) {
+                throw new IllegalArgumentException("Variant combination does not belong to this product");
+            }
+            
+            // Check for same product with same variant combination
+            existingItem = cartItemRepository.findByUserAndProductAndVariantCombination(user, product, variantCombination);
+        } else if (request.getVariationId() != null) {
+            // Handle single variation option (backward compatibility for products with single variation)
             variationOption = variationOptionRepository.findById(request.getVariationId())
                     .orElseThrow(() -> new ResourceNotFoundException("Variation option not found"));
-            // Check for same product with same variation
-            existingItem = cartItemRepository.findByUserAndProductIdAndVariationOption(user, request.getProductId(), variationOption);
+            
+            // CRITICAL FIX: Try to find the variant combination for this single variation option
+            // This ensures stock is properly tracked via variant combinations
+            List<ProductVariantCombination> combinations = variantCombinationRepository
+                    .findByProductIdAndVariationOptions(
+                            request.getProductId(),
+                            java.util.Arrays.asList(request.getVariationId()),
+                            1  // Single option
+                    );
+            
+            if (!combinations.isEmpty()) {
+                // Found a variant combination for this single option - use it instead
+                variantCombination = combinations.get(0);
+                log.info("Found variant combination {} for single variation option {}", 
+                        variantCombination.getId(), variationOption.getId());
+                existingItem = cartItemRepository.findByUserAndProductAndVariantCombination(user, product, variantCombination);
+            } else {
+                // No variant combination found - fall back to variation option (old behavior)
+                log.warn("No variant combination found for variation option {}. Using variation option directly.", 
+                        variationOption.getId());
+                existingItem = cartItemRepository.findByUserAndProductIdAndVariationOption(user, request.getProductId(), variationOption);
+            }
         } else {
             // Check for same product without variation
             existingItem = cartItemRepository.findByUserAndProductIdAndVariationOptionIsNull(user, request.getProductId());
@@ -69,7 +107,23 @@ public class CartService {
 
         // CRITICAL: Validate stock availability before adding/updating
         if (product.getTrackInventory()) {
-            if (variationOption != null) {
+            if (variantCombination != null) {
+                // Check variant combination stock
+                Integer availableStock = variantCombination.getStock();
+                
+                if (availableStock == null || availableStock <= 0) {
+                    throw new IllegalArgumentException("Selected variant combination is out of stock");
+                }
+                if (newTotalQuantity > availableStock) {
+                    throw new IllegalArgumentException(
+                            String.format("Insufficient stock for %s - %s. Available: %d, Requested: %d",
+                                    product.getTitle(),
+                                    variantCombination.getCombinationName(),
+                                    availableStock,
+                                    newTotalQuantity)
+                    );
+                }
+            } else if (variationOption != null) {
                 // Check variation option stock
                 Integer availableStock = variationOption.getStockQuantity();
                 
@@ -116,6 +170,7 @@ public class CartService {
                     .product(product)
                     .quantity(request.getQuantity())
                     .variationOption(variationOption)
+                    .variantCombination(variantCombination)
                     .build();
 
             cartItem = cartItemRepository.save(cartItem);
@@ -144,18 +199,24 @@ public class CartService {
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
 
-        // Calculate totals
-        for (CartItemResponse item : items) {
+        // Calculate totals and tax based on individual product tax rates
+        for (int i = 0; i < items.size(); i++) {
+            CartItemResponse item = items.get(i);
+            CartItem cartItem = cartItems.get(i);
+            Product product = cartItem.getProduct();
+            
             subtotal = subtotal.add(item.getSubtotal());
+            
+            // Calculate tax for this item if not tax exempt
+            if (product.getTaxExempt() == null || !product.getTaxExempt()) {
+                BigDecimal itemTaxRate = product.getTaxRate() != null ? product.getTaxRate() : BigDecimal.ZERO;
+                BigDecimal itemTax = item.getSubtotal().multiply(itemTaxRate.divide(new BigDecimal("100")));
+                tax = tax.add(itemTax);
+            }
         }
 
-        // Calculate tax (10% of subtotal)
-        tax = subtotal.multiply(new BigDecimal("0.10"));
-
-        // Calculate shipping ($15 if items exist)
-        if (!items.isEmpty()) {
-            shipping = new BigDecimal("15.00");
-        }
+        // Calculate shipping based on subtotal and quantity
+        shipping = calculateShipping(subtotal, items.size());
 
         BigDecimal totalAmount = subtotal.add(tax).add(shipping);
 
@@ -277,9 +338,13 @@ public class CartService {
         // Determine the price to use
         BigDecimal price;
         VariationOption variationOption = cartItem.getVariationOption();
+        ProductVariantCombination variantCombination = cartItem.getVariantCombination();
 
-        if (variationOption != null) {
-            // If variation option exists, use base price + adjustment
+        if (variantCombination != null) {
+            // If variant combination exists (multiple variations), use combination price
+            price = variantCombination.getPrice();
+        } else if (variationOption != null) {
+            // If single variation option exists, use base price + adjustment
             price = product.getRegularPrice() != null ? product.getRegularPrice() : BigDecimal.ZERO;
             if (variationOption.getPriceAdjustment() != null && variationOption.getPriceAdjustment().compareTo(BigDecimal.ZERO) > 0) {
                 price = price.add(variationOption.getPriceAdjustment());
@@ -307,13 +372,50 @@ public class CartService {
                 .createdAtTimestamp(cartItem.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
                 .updatedAtTimestamp(cartItem.getUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli());
 
-        // Add variation option if present
-        if (variationOption != null) {
+        // Add variant combination info if present
+        if (variantCombination != null) {
+            builder.variantCombinationId(variantCombination.getId());
+            builder.variant(variantCombination.getCombinationName());
+        } else if (variationOption != null) {
+            // Add single variation option if present (backward compatibility)
             builder.variationId(variationOption.getId());
-            // variationId is sufficient to identify the option
-            // The variation field is kept for API backward compatibility but not populated here
+            builder.variant(variationOption.getName());
         }
 
         return builder.build();
+    }
+
+    /**
+     * Calculate shipping charges based on subtotal and item count
+     * 
+     * Shipping Rules:
+     * - Free shipping if subtotal >= ₹500
+     * - ₹15 for orders < ₹500 with 1-3 items
+     * - ₹25 for orders < ₹500 with 4+ items
+     * 
+     * @param subtotal Order subtotal
+     * @param itemCount Number of items in cart
+     * @return Shipping charge
+     */
+    private BigDecimal calculateShipping(BigDecimal subtotal, int itemCount) {
+        // Free shipping threshold
+        BigDecimal freeShippingThreshold = new BigDecimal("500.00");
+        
+        // No items = no shipping
+        if (itemCount == 0) {
+            return BigDecimal.ZERO;
+        }
+        
+        // Free shipping for orders over threshold
+        if (subtotal.compareTo(freeShippingThreshold) >= 0) {
+            return BigDecimal.ZERO;
+        }
+        
+        // Tiered shipping based on item count
+        if (itemCount <= 3) {
+            return new BigDecimal("15.00");  // Standard shipping for 1-3 items
+        } else {
+            return new BigDecimal("25.00");  // Higher shipping for 4+ items
+        }
     }
 }

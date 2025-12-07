@@ -44,7 +44,8 @@ public class ProductVariantCombination {
 
     @OneToMany(
         mappedBy = "combination",
-        cascade = CascadeType.REMOVE,
+        cascade = CascadeType.ALL,
+        orphanRemoval = true,
         fetch = FetchType.LAZY
     )
     @Builder.Default

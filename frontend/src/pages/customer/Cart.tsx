@@ -55,11 +55,24 @@ interface CartItem {
   variant?: string
 }
 
+interface CartSummary {
+  subtotal: number
+  tax: number
+  shipping: number
+  total: number
+}
+
 export default function Cart() {
   const navigate = useNavigate()
   const theme = useTheme()
 
   const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [cartSummary, setCartSummary] = useState<CartSummary>({
+    subtotal: 0,
+    tax: 0,
+    shipping: 0,
+    total: 0
+  })
   const [loading, setLoading] = useState(true)
 
   // Fetch cart items from backend API
@@ -106,6 +119,14 @@ export default function Cart() {
       }))
 
       setCartItems(mappedItems)
+      
+      // Set cart summary from API response
+      setCartSummary({
+        subtotal: parseFloat(data.data?.subtotal) || 0,
+        tax: parseFloat(data.data?.tax) || 0,
+        shipping: parseFloat(data.data?.shipping) || 0,
+        total: parseFloat(data.data?.totalAmount) || 0
+      })
     } catch (error) {
       console.error('Error fetching cart:', error)
       // Don't show error for guest users - they'll see empty cart
@@ -159,6 +180,9 @@ export default function Cart() {
             : item
         )
       )
+      
+      // Refetch cart to get updated totals including tax
+      fetchCart()
     } catch (error) {
       console.error('Error updating quantity:', error)
       toast.error('Failed to update quantity')
@@ -201,11 +225,6 @@ export default function Cart() {
       toast.error('Failed to remove item')
     }
   }
-
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const tax = subtotal * 0.1
-  const shipping = cartItems.length > 0 ? 15 : 0
-  const total = subtotal + tax + shipping
 
   if (loading) {
     return (
@@ -478,15 +497,17 @@ export default function Cart() {
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="body1">Subtotal</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>₹{subtotal.toFixed(2)}</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>₹{cartSummary.subtotal.toFixed(2)}</Typography>
                 </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body1">Tax (10%)</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>₹{tax.toFixed(2)}</Typography>
-                </Box>
+                {cartSummary.tax > 0 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body1">Tax</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>₹{cartSummary.tax.toFixed(2)}</Typography>
+                  </Box>
+                )}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="body1">Shipping</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>₹{shipping.toFixed(2)}</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>₹{cartSummary.shipping.toFixed(2)}</Typography>
                 </Box>
 
                 <Divider sx={{ my: 1 }} />
@@ -514,7 +535,7 @@ export default function Cart() {
                       WebkitTextFillColor: 'transparent'
                     }}
                   >
-                    ₹{total.toFixed(2)}
+                    ₹{cartSummary.total.toFixed(2)}
                   </Typography>
                 </Box>
 

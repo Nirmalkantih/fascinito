@@ -49,6 +49,7 @@ public class ProductResponse {
     
     private List<ProductImageResponse> images;
     private List<ProductVariationResponse> variations;
+    private List<VariantCombinationResponse> variantCombinations;
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

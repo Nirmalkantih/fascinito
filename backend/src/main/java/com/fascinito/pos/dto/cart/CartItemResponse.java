@@ -16,6 +16,8 @@ public class CartItemResponse {
     private BigDecimal productPrice;
     private Integer quantity;
     private Long variationId;
+    private Long variantCombinationId;
+    private String variant;
     private ProductVariationResponse variation;
     private BigDecimal subtotal;
     private Long createdAtTimestamp;
