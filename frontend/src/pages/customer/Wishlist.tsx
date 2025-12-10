@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import LazyImage from '../../components/LazyImage'
 import { useWishlist } from '../../contexts/WishlistContext'
+import api from '../../services/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -73,20 +74,7 @@ export default function Wishlist() {
   const fetchWishlist = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-
-      const response = await fetch('/api/wishlist', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch wishlist')
-      }
-
-      const data = await response.json()
+      const data = await api.get('/wishlist')
       setWishlistItems(data.data?.items || [])
     } catch (error) {
       console.error('Error fetching wishlist:', error)
@@ -99,18 +87,7 @@ export default function Wishlist() {
 
   const handleRemoveFromWishlist = async (productId: number) => {
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-      const response = await fetch(`/api/wishlist/${productId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to remove from wishlist')
-      }
+      await api.delete(`/wishlist/${productId}`)
 
       // Update local state
       setWishlistItems(items => items.filter(item => item.productId !== productId))
@@ -128,59 +105,10 @@ export default function Wishlist() {
 
   const handleMoveToCart = async (item: WishlistItem) => {
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      }
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      const response = await fetch('/api/cart/items', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          productId: item.productId,
-          quantity: 1
-        })
+      await api.post('/cart/items', {
+        productId: item.productId,
+        quantity: 1
       })
-
-      // Handle 401 - token expired or invalid
-      if (response.status === 401 && token) {
-        // Clear invalid tokens
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('token')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
-        
-        // Retry without token (guest mode)
-        const retryResponse = await fetch('/api/cart/items', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            productId: item.productId,
-            quantity: 1
-          })
-        })
-
-        if (retryResponse.ok) {
-          toast.success(`${item.productName} moved to cart`)
-          handleRemoveFromWishlist(item.productId)
-          toast.info('Your session expired. Continue browsing as guest or login again.')
-          // Navigate to cart page
-          navigate('/cart')
-        } else {
-          toast.error('Please login to add items to cart')
-        }
-        return
-      }
-
-      if (!response.ok) {
-        throw new Error('Failed to add to cart')
-      }
 
       toast.success(`${item.productName} moved to cart`)
       handleRemoveFromWishlist(item.productId)

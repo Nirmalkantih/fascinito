@@ -85,7 +85,7 @@ public class StaffService {
     public StaffResponse createStaff(StaffRequest request) {
         log.debug("Creating new staff: {}", request.getEmail());
 
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmailAndDeletedFalse(request.getEmail())) {
             throw new BadRequestException("Email already exists: " + request.getEmail());
         }
 
@@ -137,7 +137,7 @@ public class StaffService {
 
         // Check if email is being changed and if it already exists
         if (!user.getEmail().equals(request.getEmail()) && 
-            userRepository.existsByEmail(request.getEmail())) {
+            userRepository.existsByEmailAndDeletedFalse(request.getEmail())) {
             throw new BadRequestException("Email already exists: " + request.getEmail());
         }
 

@@ -30,6 +30,7 @@ import {
   ShoppingCart
 } from '@mui/icons-material'
 import { useWishlist } from '../../contexts/WishlistContext'
+import api from '../../services/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -104,26 +105,14 @@ export default function Home() {
         // Fetch featured products using dedicated featured endpoint
         // Add cache-busting query parameter to ensure fresh data
         const timestamp = new Date().getTime()
-        const featuredResponse = await fetch(`/api/products/featured?page=0&size=8&sortBy=id&sortDir=desc&t=${timestamp}`, {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        })
-        const featuredData = await featuredResponse.json()
-        const featuredList = featuredData.data?.content || featuredData.content || []
+        const featuredResponse = await api.get(`/products/featured?page=0&size=8&sortBy=id&sortDir=desc&t=${timestamp}`)
+        const featuredData = featuredResponse.data || featuredResponse
+        const featuredList = featuredData?.content || []
 
         // Fetch all products for new collection (to show newest products)
-        const allResponse = await fetch(`/api/products?page=0&size=100&active=true&visibleToCustomers=true&sortBy=createdAt&sortDir=desc&t=${timestamp}`, {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        })
-        const allData = await allResponse.json()
-        const allProducts = allData.data?.content || allData.content || []
+        const allResponse = await api.get(`/products?page=0&size=100&active=true&visibleToCustomers=true&sortBy=createdAt&sortDir=desc&t=${timestamp}`)
+        const allData = allResponse.data || allResponse
+        const allProducts = allData?.content || []
 
         // Helper to extract image URL from product
         const getProductImageUrl = (product: any): string => {
@@ -214,15 +203,9 @@ export default function Home() {
       try {
         // Add cache-busting query parameter to ensure fresh data
         const timestamp = new Date().getTime()
-        const response = await fetch(`/api/banners/active?t=${timestamp}`, {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        })
-        const data = await response.json()
-        const apiBanners = data.data || []
+        const response = await api.get(`/banners/active?t=${timestamp}`)
+        const data = response.data || response
+        const apiBanners = data || []
 
         if (apiBanners.length > 0) {
           // Map banner data to carousel items
@@ -310,9 +293,9 @@ export default function Home() {
     const fetchCategories = async () => {
       try {
         // Fetch only active categories
-        const response = await fetch('/api/categories?page=0&size=6&active=true')
-        const data = await response.json()
-        const apiCategories = data.data?.content || data.content || []
+        const response = await api.get('/categories?page=0&size=6&active=true')
+        const data = response.data || response
+        const apiCategories = data?.content || []
 
         if (apiCategories.length > 0) {
           const colors = ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#fee140']
@@ -361,29 +344,12 @@ export default function Home() {
       }
 
       const isFavorited = isInWishlist(productId)
-      const method = isFavorited ? 'DELETE' : 'POST'
-      const url = `/api/wishlist/${productId}`
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      const responseData = await response.json()
-
-      if (!response.ok) {
-        const errorMessage = responseData?.message || 'Failed to update wishlist'
-        toast.error(errorMessage)
-        return
-      }
-
-      // Update local state in context
       if (isFavorited) {
+        await api.delete(`/wishlist/${productId}`)
         removeFromWishlist(productId)
       } else {
+        await api.post(`/wishlist/${productId}`)
         addToWishlist(productId)
       }
 
@@ -552,70 +518,25 @@ export default function Home() {
           startIcon={<ShoppingCart />}
           onClick={async () => {
             try {
-              const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-              const headers: Record<string, string> = {
-                'Content-Type': 'application/json'
-              }
-              
-              if (token) {
-                headers['Authorization'] = `Bearer ${token}`
-              }
-
-              const response = await fetch('/api/cart/items', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
-                  productId: product.id,
-                  quantity: 1
-                })
+              await api.post('/cart/items', {
+                productId: product.id,
+                quantity: 1
               })
-
-              // Handle 401 - token expired or invalid
-              if (response.status === 401 && token) {
-                // Clear invalid tokens
-                localStorage.removeItem('accessToken')
-                localStorage.removeItem('token')
-                localStorage.removeItem('refreshToken')
-                localStorage.removeItem('user')
-                
-                // Retry without token (guest mode)
-                const retryResponse = await fetch('/api/cart/items', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    productId: product.id,
-                    quantity: 1
-                  })
-                })
-
-                if (retryResponse.ok) {
-                  toast.success(`${product.name || product.slug || 'Product'} added to cart!`)
-                  window.dispatchEvent(new CustomEvent('cartUpdated'))
-                  toast.info('Your session expired. Continue browsing as guest or login again.')
-                  // Navigate to cart page
-                  navigate('/cart')
-                } else {
-                  toast.error('Please login to add items to cart')
-                }
-                return
-              }
-
-              if (!response.ok) {
-                const data = await response.json()
-                toast.error(data?.message || 'Failed to add to cart')
-                return
-              }
 
               toast.success(`${product.name || product.slug || 'Product'} added to cart!`)
               // Dispatch event to update cart in navbar
               window.dispatchEvent(new CustomEvent('cartUpdated'))
               // Navigate to cart page
               navigate('/cart')
-            } catch (error) {
+            } catch (error: any) {
               console.error('Error adding to cart:', error)
-              toast.error('Failed to add to cart')
+              // Check if it's a 401 error (handled by interceptor)
+              if (error.response?.status === 401) {
+                toast.error('Please login to add items to cart')
+              } else {
+                const errorMessage = error.response?.data?.message || 'Failed to add to cart'
+                toast.error(errorMessage)
+              }
             }
           }}
           sx={{

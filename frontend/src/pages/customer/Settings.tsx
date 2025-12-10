@@ -24,6 +24,7 @@ import { Delete as DeleteIcon, Security as SecurityIcon, Notifications as Notifi
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { toast } from 'react-toastify'
+import api from '../../services/api'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -71,30 +72,18 @@ export default function Settings() {
     }
 
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-      const response = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          currentPassword: passwords.currentPassword,
-          newPassword: passwords.newPassword
-        })
+      await api.post('/auth/change-password', {
+        currentPassword: passwords.currentPassword,
+        newPassword: passwords.newPassword
       })
 
-      if (response.ok) {
-        toast.success('Password changed successfully')
-        setChangePasswordDialogOpen(false)
-        setPasswords({
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        })
-      } else {
-        toast.error('Failed to change password')
-      }
+      toast.success('Password changed successfully')
+      setChangePasswordDialogOpen(false)
+      setPasswords({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      })
     } catch (error) {
       console.error('Error changing password:', error)
       toast.error('An error occurred while changing password')
@@ -108,22 +97,11 @@ export default function Settings() {
     }
 
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-      const response = await fetch('/api/auth/delete-account', {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      await api.delete('/auth/delete-account')
 
-      if (response.ok) {
-        toast.success('Account deleted successfully')
-        logout()
-        navigate('/login')
-      } else {
-        toast.error('Failed to delete account')
-      }
+      toast.success('Account deleted successfully')
+      logout()
+      navigate('/login')
     } catch (error) {
       console.error('Error deleting account:', error)
       toast.error('An error occurred while deleting account')

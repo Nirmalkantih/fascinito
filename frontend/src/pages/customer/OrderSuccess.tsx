@@ -28,6 +28,7 @@ import {
   Home
 } from '@mui/icons-material'
 import { toast } from 'react-toastify'
+import api from '../../services/api'
 
 interface OrderItem {
   id: number
@@ -87,23 +88,17 @@ export default function OrderSuccess() {
         return
       }
 
-      const response = await fetch(`/api/orders/${orderId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await api.get(`/orders/${orderId}`)
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch order details')
-      }
-
-      const data = await response.json()
-      setOrder(data.data)
-    } catch (error) {
-      console.error('Error fetching order:', error)
-      setError('Failed to load order details. Please try again.')
-      toast.error('Failed to load order details')
+      // Handle ApiResponse wrapper: response.data.data or direct response.data
+      const data = response.data || response
+      const orderData = data.data || data
+      
+      setOrder(orderData)
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || 'Failed to load order details. Please try again.'
+      setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }

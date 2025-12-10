@@ -62,9 +62,10 @@ class RazorpayService {
   async displayRazorpay(
     orderData: RazorpayOrderResponse,
     onSuccess: (response: PaymentVerificationResponse) => void,
-    onFailure: (error: any) => void
+    onFailure: (error: any) => void,
+    preferredMethod?: string
   ): Promise<void> {
-    console.log('displayRazorpay called with orderData:', orderData);
+    console.log('displayRazorpay called with orderData:', orderData, 'preferredMethod:', preferredMethod);
     
     const res = await this.loadScript();
 
@@ -123,6 +124,27 @@ class RazorpayService {
         }
       }
     };
+
+    // Add preferred method to config if specified
+    if (preferredMethod) {
+      const methodMap: { [key: string]: string } = {
+        'CARD': 'card',
+        'UPI': 'upi'
+      };
+      
+      const razorpayMethod = methodMap[preferredMethod];
+      if (razorpayMethod) {
+        options.config = {
+          display: {
+            preferences: {
+              show_default_blocks: true
+            }
+          }
+        };
+        // Set preferred method - this tells Razorpay which section to show first
+        (options.prefill as any).method = razorpayMethod;
+      }
+    }
 
     console.log('Razorpay options:', options);
 

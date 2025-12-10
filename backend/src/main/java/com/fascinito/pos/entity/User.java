@@ -59,6 +59,12 @@ public class User {
     @Column
     private LocalDateTime resetCodeExpiry;
 
+    @Column(nullable = false)
+    private Boolean deleted = false;
+
+    @Column
+    private LocalDateTime deletedAt;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

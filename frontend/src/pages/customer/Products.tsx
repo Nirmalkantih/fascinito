@@ -21,6 +21,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import LazyImage from '../../components/LazyImage'
 import { useWishlist } from '../../contexts/WishlistContext'
+import api from '../../services/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -79,9 +80,9 @@ export default function Products() {
       setLoading(true)
       try {
         // Fetch only active and visible products
-        const response = await fetch('/api/products?page=0&size=1000&active=true&visibleToCustomers=true')
-        const data = await response.json()
+        const response = await api.get('/products?page=0&size=1000&active=true&visibleToCustomers=true')
         // Handle both ApiResponse wrapper and direct PageResponse
+        const data = response.data || response
         const products = data.data?.content || data.content || []
 
         // Ensure imageUrl is set from images array if not directly present
@@ -153,36 +154,21 @@ export default function Products() {
       }
 
       const isFavorited = isInWishlist(productId)
-      const method = isFavorited ? 'DELETE' : 'POST'
-      const url = `/api/wishlist/${productId}`
+      const url = `/wishlist/${productId}`
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      const responseData = await response.json()
-
-      if (!response.ok) {
-        const errorMessage = responseData?.message || 'Failed to update wishlist'
-        toast.error(errorMessage)
-        return
-      }
-
-      // Update local state in context
       if (isFavorited) {
+        await api.delete(url)
         removeFromWishlist(productId)
       } else {
+        await api.post(url)
         addToWishlist(productId)
       }
 
       toast.success(isFavorited ? 'Removed from wishlist' : 'Added to wishlist')
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || 'Failed to update wishlist'
       console.error('Error updating wishlist:', error)
-      toast.error('Failed to update wishlist')
+      toast.error(errorMessage)
     }
   }
 
@@ -419,66 +405,15 @@ export default function Products() {
 
                           if (product.inStock || product.stockQuantity! > 0) {
                             try {
-                              const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-                              const headers: Record<string, string> = {
-                                'Content-Type': 'application/json'
-                              }
-                              
-                              if (token) {
-                                headers['Authorization'] = `Bearer ${token}`
-                              }
-
-                              const response = await fetch('/api/cart/items', {
-                                method: 'POST',
-                                headers,
-                                body: JSON.stringify({
-                                  productId: product.id,
-                                  quantity: 1
-                                })
+                              await api.post('/cart/items', {
+                                productId: product.id,
+                                quantity: 1
                               })
 
-                              // Handle 401 - token expired or invalid
-                              if (response.status === 401 && token) {
-                                // Clear invalid tokens
-                                localStorage.removeItem('accessToken')
-                                localStorage.removeItem('token')
-                                localStorage.removeItem('refreshToken')
-                                localStorage.removeItem('user')
-                                
-                                // Retry without token (guest mode)
-                                const retryResponse = await fetch('/api/cart/items', {
-                                  method: 'POST',
-                                  headers: {
-                                    'Content-Type': 'application/json'
-                                  },
-                                  body: JSON.stringify({
-                                    productId: product.id,
-                                    quantity: 1
-                                  })
-                                })
-
-                                if (retryResponse.ok) {
-                                  toast.success(`${productName} added to cart!`)
-                                  window.dispatchEvent(new CustomEvent('cartUpdated'))
-                                  toast.info('Your session expired. Continue browsing as guest or login again.')
-                                  // Navigate to cart page
-                                  navigate('/cart')
-                                } else {
-                                  toast.error('Please login to add items to cart')
-                                }
-                                return
-                              }
-
-                              if (response.ok) {
-                                toast.success(`${productName} added to cart!`)
-                                navigate('/cart');
-                                // Trigger cart count update by dispatching a custom event
-                                window.dispatchEvent(new CustomEvent('cartUpdated'))
-                                // Navigate to cart page
-                                
-                              } else {
-                                toast.error('Failed to add item to cart')
-                              }
+                              toast.success(`${productName} added to cart!`)
+                              navigate('/cart')
+                              // Trigger cart count update by dispatching a custom event
+                              window.dispatchEvent(new CustomEvent('cartUpdated'))
                             } catch (error) {
                               console.error('Error adding to cart:', error)
                               toast.error('Error adding item to cart')

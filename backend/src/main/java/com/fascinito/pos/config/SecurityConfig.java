@@ -42,8 +42,14 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints - no authentication required
-                .requestMatchers("/auth/**", "/public/**").permitAll()
+                // Public auth endpoints - no authentication required
+                .requestMatchers("/auth/signup", "/auth/login", "/auth/firebase-login", "/auth/refresh", 
+                                "/auth/forgot-password", "/auth/verify-reset-code", 
+                                "/auth/reset-password", "/auth/send-otp", "/auth/verify-otp").permitAll()
+                // Protected auth endpoints - require authentication
+                .requestMatchers("/auth/logout", "/auth/delete-account").authenticated()
+                // Other public endpoints
+                .requestMatchers("/public/**").permitAll()
                 // Allow public access to uploaded images (static resources)
                 .requestMatchers("/uploads/**").permitAll()
                 // Allow GET requests for products, categories, and banners (customer browsing)

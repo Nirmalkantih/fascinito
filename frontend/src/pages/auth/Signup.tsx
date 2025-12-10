@@ -47,41 +47,132 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [countdown, setCountdown] = useState(0)
+  const [detectedCountry, setDetectedCountry] = useState<{ code: string; flag: string; dialCode: string } | null>(null)
 
   const steps = ['Enter Details', 'Verify Phone']
 
-  // Initialize reCAPTCHA verifier
-  useEffect(() => {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => {
-          // reCAPTCHA solved
-        },
-      })
+  // Country detection logic
+  const detectCountry = (phone: string): { code: string; flag: string; dialCode: string } | null => {
+    // Remove all non-digit characters
+    const digits = phone.replace(/\D/g, '')
+    
+    // If 10 digits, assume India
+    if (digits.length === 10) {
+      return { code: 'IN', flag: '🇮🇳', dialCode: '+91' }
     }
-  }, [])
+    
+    // If starts with 91 and has 12 digits total (91 + 10 digits), it's India
+    if (digits.startsWith('91') && digits.length === 12) {
+      return { code: 'IN', flag: '🇮🇳', dialCode: '+91' }
+    }
+    
+    // Add more countries as needed in future
+    // Example:
+    // if (digits.length === 10 && digits.startsWith('1')) {
+    //   return { code: 'US', flag: '🇺🇸', dialCode: '+1' }
+    // }
+    
+    return null
+  }
+
+  // Format phone to E.164 based on detected country
+  const formatPhoneForFirebase = (phone: string): string => {
+    const digits = phone.replace(/\D/g, '')
+    
+    // If already has + sign, validate and return
+    if (phone.includes('+')) {
+      const cleaned = phone.replace(/\s/g, '').replace(/[-()]/g, '')
+      return cleaned
+    }
+    
+    // Auto-detect country and format
+    const country = detectCountry(phone)
+    if (country) {
+      if (country.code === 'IN') {
+        // Remove leading 91 if present
+        const numberPart = digits.startsWith('91') ? digits.substring(2) : digits
+        return `+91${numberPart}`
+      }
+    }
+    
+    // Fallback: if no country detected, assume India for 10 digits
+    if (digits.length === 10) {
+      return `+91${digits}`
+    }
+    
+    return `+${digits}`
+  }
 
   // Phone validation
   const validatePhone = (phone: string): boolean => {
-    // Firebase requires phone in E.164 format: +[country code][number]
+    const digits = phone.replace(/\D/g, '')
+    
+    // Valid if exactly 10 digits (Indian number without country code)
+    if (digits.length === 10) {
+      return true
+    }
+    
+    // Valid if 12 digits starting with 91 (Indian number with country code)
+    if (digits.length === 12 && digits.startsWith('91')) {
+      return true
+    }
+    
+    // Firebase E.164 format validation
     const phoneRegex = /^\+[1-9]\d{1,14}$/
-    return phoneRegex.test(phone.replace(/\s/g, ''))
+    return phoneRegex.test(formatPhoneForFirebase(phone))
   }
 
-  // Format phone to E.164 if needed
-  const formatPhoneForFirebase = (phone: string): string => {
-    const cleaned = phone.replace(/\s/g, '').replace(/[-()]/g, '')
-    // If already has +, return as is
-    if (cleaned.startsWith('+')) {
-      return cleaned
+  // Update country detection when phone changes
+  useEffect(() => {
+    if (formData.phone) {
+      const country = detectCountry(formData.phone)
+      setDetectedCountry(country)
+    } else {
+      setDetectedCountry(null)
     }
-    // If starts with country code without +, add it
-    if (cleaned.startsWith('91') && cleaned.length >= 12) {
-      return '+' + cleaned
+  }, [formData.phone])
+
+  // Setup Firebase reCAPTCHA verifier with better error handling
+  const setupRecaptcha = () => {
+    // Clear any existing verifier first
+    if (window.recaptchaVerifier) {
+      try {
+        window.recaptchaVerifier.clear()
+        console.log('🧹 Cleared existing reCAPTCHA')
+      } catch (e) {
+        console.log('Previous reCAPTCHA already cleared')
+      }
+      ;(window as any).recaptchaVerifier = null
     }
-    // Otherwise add +91 for India (change this based on your country)
-    return '+91' + cleaned
+
+    try {
+      console.log('🔧 Setting up Firebase reCAPTCHA...')
+      
+      window.recaptchaVerifier = new RecaptchaVerifier(
+        auth,
+        'recaptcha-container',
+        {
+          size: 'normal', // Changed from 'invisible' to 'normal' for better reliability
+          callback: (response: any) => {
+            console.log('✅ reCAPTCHA solved, token:', response?.substring(0, 20) + '...')
+          },
+          'expired-callback': () => {
+            console.log('⚠️ reCAPTCHA expired, please try again')
+            setError('reCAPTCHA expired. Please try again.')
+          },
+          'error-callback': () => {
+            console.log('❌ reCAPTCHA error occurred')
+            setError('reCAPTCHA verification failed. Please refresh and try again.')
+          },
+        }
+      )
+
+      console.log('✅ Firebase reCAPTCHA initialized successfully')
+      console.log('📱 Ready to send OTP')
+    } catch (error) {
+      console.error('❌ reCAPTCHA setup error:', error)
+      setError('Failed to initialize reCAPTCHA. Please refresh the page.')
+    }
   }
 
   // Send OTP using Firebase
@@ -112,8 +203,24 @@ export default function Signup() {
 
     setLoading(true)
     try {
+      // IMPORTANT: Setup reCAPTCHA before sending OTP
+      console.log('🔧 Setting up reCAPTCHA...')
+      setupRecaptcha()
+      
+      // Wait longer for reCAPTCHA to fully initialize (especially for real numbers)
+      console.log('⏳ Waiting for reCAPTCHA to be ready...')
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
       const appVerifier = window.recaptchaVerifier
+      
+      if (!appVerifier) {
+        throw new Error('reCAPTCHA verifier not initialized. Please refresh the page and try again.')
+      }
+      
+      console.log('📱 Sending OTP to:', phoneNumber)
       const confirmation = await signInWithPhoneNumber(auth, phoneNumber, appVerifier)
+      console.log('✅ OTP sent successfully!')
+      
       setConfirmationResult(confirmation)
       setActiveStep(1)
       setCountdown(60)
@@ -129,17 +236,35 @@ export default function Signup() {
         })
       }, 1000)
     } catch (err: any) {
-      console.error('Send OTP error:', err)
+      console.error('❌ Send OTP error:', err)
+      console.error('Error code:', err.code)
+      console.error('Error message:', err.message)
+      console.error('Full error object:', JSON.stringify(err, null, 2))
+      
+      // Clear reCAPTCHA on error to allow retry
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear()
+        } catch (clearError) {
+          console.error('Error clearing reCAPTCHA:', clearError)
+        }
+        ;(window as any).recaptchaVerifier = null
+      }
+      
       if (err.code === 'auth/invalid-phone-number') {
         setError('Invalid phone number format. Use +[country code][number] (e.g., +919876543210)')
       } else if (err.code === 'auth/too-many-requests') {
         setError('Too many requests. Please try again later.')
-      } else if (err.code === 'auth/billing-not-enabled') {
-        setError('⚠️ Firebase Phone Auth requires Blaze plan. Please upgrade your Firebase project to Blaze (Pay-as-you-go) plan, or use test phone numbers in Firebase Console for development.')
-      } else if (err.code === 'auth/invalid-app-credential' || err.message?.includes('INVALID_APP_CREDENTIAL')) {
-        setError('⚠️ Phone Authentication requires Firebase Blaze plan. Upgrade to Blaze plan in Firebase Console, or add test phone numbers (free) for development.')
+      } else if (err.code === 'auth/quota-exceeded') {
+        setError('⚠️ Daily SMS quota exceeded. Please try again tomorrow or use test phone numbers for development.')
+      } else if (err.code === 'auth/missing-app-credential') {
+        setError('⚠️ reCAPTCHA verification failed. Please refresh the page and try again.')
+      } else if (err.code === 'auth/invalid-app-credential') {
+        setError('⚠️ Firebase Phone Auth verification failed on localhost. This is a known limitation.\n\n✅ SOLUTION: Use test phone number for development:\n• Phone: +911234567899 (or just 1234567899)\n• OTP Code: 123456\n\n💡 Real phone numbers will work in production deployment!')
+      } else if (err.code === 'auth/captcha-check-failed') {
+        setError('⚠️ reCAPTCHA verification failed. Please try again or use a test phone number.')
       } else {
-        setError(err.message || 'Failed to send OTP. Please try again.')
+        setError(`Error (${err.code || 'unknown'}): ${err.message || 'Failed to send OTP. Please try again.'}`)
       }
     } finally {
       setLoading(false)
@@ -190,9 +315,24 @@ export default function Signup() {
     setError('')
     setLoading(true)
     try {
+      // Setup reCAPTCHA before resending
+      console.log('🔧 Setting up reCAPTCHA for resend...')
+      setupRecaptcha()
+      
+      // Wait a bit for reCAPTCHA to fully initialize
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       const phoneNumber = formatPhoneForFirebase(formData.phone)
       const appVerifier = window.recaptchaVerifier
+      
+      if (!appVerifier) {
+        throw new Error('reCAPTCHA verifier not initialized')
+      }
+      
+      console.log('📱 Resending OTP to:', phoneNumber)
       const confirmation = await signInWithPhoneNumber(auth, phoneNumber, appVerifier)
+      console.log('✅ OTP resent successfully!')
+      
       setConfirmationResult(confirmation)
       setCountdown(60)
       
@@ -206,7 +346,18 @@ export default function Signup() {
         })
       }, 1000)
     } catch (err: any) {
-      console.error('Resend OTP error:', err)
+      console.error('❌ Resend OTP error:', err)
+      
+      // Clear reCAPTCHA on error to allow retry
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear()
+        } catch (clearError) {
+          console.error('Error clearing reCAPTCHA:', clearError)
+        }
+        ;(window as any).recaptchaVerifier = null
+      }
+      
       setError(err.message || 'Failed to resend OTP. Please try again.')
     } finally {
       setLoading(false)
@@ -297,7 +448,7 @@ export default function Signup() {
           </Stepper>
 
           {error && (
-            <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+            <Alert severity="error" sx={{ mb: 3, borderRadius: 2, whiteSpace: 'pre-line' }}>
               {error}
             </Alert>
           )}
@@ -354,19 +505,34 @@ export default function Signup() {
                   label="Phone Number"
                   name="phone"
                   autoComplete="tel"
-                  placeholder="917010921433 or +917010921433"
+                  placeholder="1234567899"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  error={formData.phone !== '' && !validatePhone(formatPhoneForFirebase(formData.phone))}
+                  onChange={(e) => {
+                    // Allow only digits
+                    const value = e.target.value.replace(/\D/g, '')
+                    setFormData({ ...formData, phone: value })
+                  }}
+                  error={formData.phone !== '' && !validatePhone(formData.phone)}
                   helperText={
-                    formData.phone !== '' && !validatePhone(formatPhoneForFirebase(formData.phone))
-                      ? 'Invalid phone number. Enter 10 digits or with +91'
-                      : 'Enter 10-digit mobile number (+ sign optional)'
+                    formData.phone !== '' && !validatePhone(formData.phone)
+                      ? 'Please enter a valid 10-digit mobile number'
+                      : detectedCountry 
+                        ? `${detectedCountry.flag} ${detectedCountry.dialCode} detected - India`
+                        : 'Enter your 10-digit mobile number'
                   }
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <Phone color="primary" />
+                        {detectedCountry ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Typography sx={{ fontSize: '1.5rem' }}>{detectedCountry.flag}</Typography>
+                            <Typography sx={{ color: 'text.secondary', fontSize: '0.9rem' }}>
+                              {detectedCountry.dialCode}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Phone color="primary" />
+                        )}
                       </InputAdornment>
                     ),
                   }}
@@ -447,7 +613,10 @@ export default function Signup() {
               // Step 2: OTP Verification
               <>
                 <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-                  We've sent a 6-digit verification code to <strong>{formData.phone}</strong>
+                  We've sent a 6-digit verification code to{' '}
+                  <strong>
+                    {detectedCountry?.flag} {detectedCountry?.dialCode} {formData.phone}
+                  </strong>
                 </Alert>
 
                 <TextField
@@ -544,6 +713,24 @@ export default function Signup() {
                 </Link>
               </Typography>
             </Box>
+
+            {/* reCAPTCHA container - Centered and visible */}
+            <Box 
+              id="recaptcha-container"
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                mt: 3,
+                mb: 2,
+                minHeight: '78px', // Reserve space for reCAPTCHA
+                '& > div': {
+                  margin: '0 auto',
+                  transform: 'scale(0.9)', // Slightly smaller for better fit
+                  transformOrigin: 'center',
+                }
+              }}
+            ></Box>
           </Box>
         </Paper>
 
@@ -558,9 +745,6 @@ export default function Signup() {
             © 2025 POS Application. All rights reserved.
           </Typography>
         </Container>
-        
-        {/* Invisible reCAPTCHA container for Firebase */}
-        <div id="recaptcha-container"></div>
       </Box>
     )
   }

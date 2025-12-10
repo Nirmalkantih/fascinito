@@ -42,6 +42,7 @@ import { toast } from 'react-toastify'
 import PaymentModal from '../../components/PaymentModal'
 import razorpayService from '../../services/razorpayService'
 import { PaymentVerificationResponse } from '../../types/razorpay'
+import api from '../../services/api'
 
 interface CartItem {
   id: number
@@ -131,7 +132,7 @@ export default function Checkout() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [cartData, setCartData] = useState<CartData | null>(null)
-  const [paymentMethod, setPaymentMethod] = useState('CREDIT_CARD')
+  const [paymentMethod, setPaymentMethod] = useState('UPI')
   const [shippingAddress, setShippingAddress] = useState({
     fullName: '',
     email: '',
@@ -165,20 +166,7 @@ export default function Checkout() {
   const fetchCart = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-
-      const response = await fetch('/api/cart', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch cart')
-      }
-
-      const data = await response.json()
+      const data = await api.get('/cart')
       setCartData(data.data)
 
       // Pre-fill shipping address with user data
@@ -241,51 +229,39 @@ export default function Checkout() {
 
     setSubmitting(true)
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-      console.log('Token found:', token ? 'Yes (length: ' + token.length + ')' : 'No')
+      console.log('Creating order...')
+
+      // Map frontend payment methods to backend enum values
+      const backendPaymentMethod = paymentMethod === 'CARD' ? 'RAZORPAY' : paymentMethod
 
       // Create order with PENDING status
-      const response = await fetch('/api/orders/checkout', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          shippingAddress: `${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zipCode}, ${shippingAddress.country}`,
-          billingAddress: sameAsBilling
-            ? `${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zipCode}, ${shippingAddress.country}`
-            : `${billingAddress.street}, ${billingAddress.city}, ${billingAddress.state} ${billingAddress.zipCode}, ${billingAddress.country}`,
-          paymentMethod: paymentMethod,
-          discount: discount,
-          testMode: true  // Enable test mode for demo checkout
-        })
+      const order = await api.post('/orders/checkout', {
+        shippingAddress: `${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zipCode}, ${shippingAddress.country}`,
+        billingAddress: sameAsBilling
+          ? `${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zipCode}, ${shippingAddress.country}`
+          : `${billingAddress.street}, ${billingAddress.city}, ${billingAddress.state} ${billingAddress.zipCode}, ${billingAddress.country}`,
+        paymentMethod: backendPaymentMethod,
+        discount: discount,
+        testMode: true  // Enable test mode for demo checkout
       })
 
-      console.log('Order creation response status:', response.status, response.ok)
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Order creation failed with status', response.status, ':', errorText)
-        
-        if (response.status === 500 && errorText.includes('Access Denied')) {
-          throw new Error('Authentication failed. Please log out and log back in.')
-        }
-        throw new Error('Failed to create order')
-      }
-
-      const order = await response.json()
       console.log('Order created successfully:', order)
       const orderData = order.data
 
       // Store order data
       setOrderCreated(orderData)
 
-      // If Razorpay is selected, initiate Razorpay payment
-      if (paymentMethod === 'RAZORPAY') {
-        await initiateRazorpayPayment(orderData)
+      // Handle payment based on selected method
+      if (paymentMethod === 'CASH') {
+        // Cash on Delivery - show success message and navigate
+        toast.success('Order placed successfully! Pay cash on delivery.')
+        navigate(`/order-success/${orderData.id}`)
+      } else if (paymentMethod === 'UPI' || paymentMethod === 'CARD') {
+        // Use Razorpay for UPI and Card payments
+        // Pass the preferred method to Razorpay
+        await initiateRazorpayPayment(orderData, paymentMethod)
       } else {
-        // For other payment methods, show the existing payment modal
+        // Fallback to payment modal for other methods
         setPaymentModalOpen(true)
       }
 
@@ -297,12 +273,12 @@ export default function Checkout() {
     }
   }
 
-  const initiateRazorpayPayment = async (orderData: any) => {
+  const initiateRazorpayPayment = async (orderData: any, preferredMethod?: string) => {
     try {
       // Create Razorpay order
       const razorpayOrderData = await razorpayService.createOrder(orderData.id)
 
-      // Display Razorpay checkout
+      // Display Razorpay checkout with preferred method
       await razorpayService.displayRazorpay(
         razorpayOrderData,
         (response: PaymentVerificationResponse) => {
@@ -312,7 +288,8 @@ export default function Checkout() {
         (error: any) => {
           // Payment failed
           handleRazorpayFailure(error)
-        }
+        },
+        preferredMethod // Pass UPI or CARD to show that section by default
       )
     } catch (error) {
       console.error('Error initiating Razorpay payment:', error)
@@ -323,16 +300,8 @@ export default function Checkout() {
   const handleRazorpaySuccess = async (response: PaymentVerificationResponse) => {
     try {
       // Clear cart after successful payment
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-      
       try {
-        await fetch('/api/cart', {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        await api.delete('/cart')
       } catch (error) {
         console.warn('Failed to clear cart, but order was confirmed:', error)
       }
@@ -370,37 +339,18 @@ export default function Checkout() {
 
   const handlePaymentSuccess = async (_paymentData: any) => {
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-
       if (!orderCreated) {
         throw new Error('Order data not found')
       }
 
       // Update order status to CONFIRMED after successful payment
-      const response = await fetch(`/api/orders/${orderCreated.id}/status`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          status: 'CONFIRMED'
-        })
+      await api.put(`/orders/${orderCreated.id}/status`, {
+        status: 'CONFIRMED'
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to confirm order')
-      }
 
       // Clear cart after successful payment
       try {
-        await fetch('/api/cart', {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        await api.delete('/cart')
       } catch (error) {
         console.warn('Failed to clear cart, but order was confirmed:', error)
       }
@@ -1093,11 +1043,24 @@ export default function Checkout() {
                       sx={{ gap: 1.5 }}
                     >
                       {[
-                        { value: 'RAZORPAY', label: 'Razorpay (UPI, Cards, Wallets)', icon: '💰' },
-                        { value: 'CREDIT_CARD', label: 'Credit Card', icon: '💳' },
-                        { value: 'DEBIT_CARD', label: 'Debit Card', icon: '💳' },
-                        { value: 'UPI', label: 'UPI', icon: '📱' },
-                        { value: 'CASH', label: 'Cash on Delivery', icon: '💵' }
+                        { 
+                          value: 'CASH', 
+                          label: 'Cash on Delivery', 
+                          icon: '💵',
+                          description: 'Pay with cash when your order is delivered'
+                        },
+                        { 
+                          value: 'UPI', 
+                          label: 'UPI (Google Pay, PhonePe, Paytm)', 
+                          icon: '📱',
+                          description: 'Pay using any UPI app'
+                        },
+                        { 
+                          value: 'CARD', 
+                          label: 'Debit Card / Credit Card', 
+                          icon: '�',
+                          description: 'Pay securely with your card'
+                        }
                       ].map((option) => (
                         <Paper
                           key={option.value}
@@ -1130,14 +1093,19 @@ export default function Checkout() {
                               />
                             }
                             label={
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Typography variant="h6">{option.icon}</Typography>
-                                <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                                  {option.label}
+                              <Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                  <Typography variant="h6">{option.icon}</Typography>
+                                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                    {option.label}
+                                  </Typography>
+                                </Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ ml: 4 }}>
+                                  {option.description}
                                 </Typography>
                               </Box>
                             }
-                            sx={{ width: '100%', m: 0 }}
+                            sx={{ width: '100%', m: 0, alignItems: 'flex-start' }}
                           />
                         </Paper>
                       ))}
@@ -1154,7 +1122,10 @@ export default function Checkout() {
                         }
                       }}
                     >
-                      Payment processing is not yet integrated. This is a demo checkout flow.
+                      {paymentMethod === 'CASH' 
+                        ? '💰 Pay cash when your order arrives at your doorstep.'
+                        : '🔒 Secure payment processing powered by industry-standard encryption.'
+                      }
                     </Alert>
 
                     <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
@@ -1295,12 +1266,10 @@ export default function Checkout() {
                       </Box>
                       <Chip
                         label={
-                          paymentMethod === 'RAZORPAY' ? 'Razorpay' :
-                          paymentMethod === 'CREDIT_CARD' ? 'Credit Card' :
-                          paymentMethod === 'DEBIT_CARD' ? 'Debit Card' :
-                          paymentMethod === 'UPI' ? 'UPI' :
                           paymentMethod === 'CASH' ? 'Cash on Delivery' :
-                          'Other'
+                          paymentMethod === 'UPI' ? 'UPI Payment' :
+                          paymentMethod === 'CARD' ? 'Card Payment' :
+                          paymentMethod
                         }
                         sx={{
                           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',

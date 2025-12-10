@@ -101,6 +101,16 @@ public class ProductService {
     public ProductResponse getProductBySlug(String slug) {
         Product product = productRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with slug: " + slug));
+        // Explicitly initialize variant combinations to avoid lazy loading issues
+        if (product.getVariantCombinations() != null) {
+            product.getVariantCombinations().size();
+            // Also initialize the options for each combination
+            product.getVariantCombinations().forEach(comb -> {
+                if (comb.getOptions() != null) {
+                    comb.getOptions().size();
+                }
+            });
+        }
         return mapToResponse(product);
     }
 
@@ -333,6 +343,9 @@ public class ProductService {
             // For updates: delete old combinations via repository directly (not via entity)
             // This avoids stale object state issues with cascade deletion
             variantCombinationRepository.deleteByProductId(product.getId());
+            // Flush to ensure deletion completes before generating new combinations
+            entityManager.flush();
+            log.info("Deleted old variant combinations for product {}", product.getId());
         }
         generateVariantCombinations(product);
     }
@@ -579,8 +592,10 @@ public class ProductService {
 
         // Map variant combinations
         if (product.getVariantCombinations() != null && !product.getVariantCombinations().isEmpty()) {
+            log.info("Mapping {} variant combinations for product {}", product.getVariantCombinations().size(), product.getId());
             response.setVariantCombinations(product.getVariantCombinations().stream()
                     .map(comb -> {
+                        log.info("Processing combination {} with {} options", comb.getId(), comb.getOptions().size());
                         List<Long> optionIds = comb.getOptions().stream()
                                 .map(opt -> opt.getVariationOption().getId())
                                 .collect(Collectors.toList());
@@ -595,6 +610,8 @@ public class ProductService {
                                 .build();
                     })
                     .collect(Collectors.toList()));
+        } else {
+            log.info("No variant combinations found for product {}", product.getId());
         }
 
         return response;

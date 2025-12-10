@@ -2,6 +2,7 @@ package com.fascinito.pos.repository;
 
 import com.fascinito.pos.entity.ProductVariantCombination;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -46,5 +47,7 @@ public interface ProductVariantCombinationRepository extends JpaRepository<Produ
     /**
      * Delete all combinations for a product
      */
-    void deleteByProductId(Long productId);
+    @Modifying
+    @Query("DELETE FROM ProductVariantCombination pvc WHERE pvc.product.id = :productId")
+    void deleteByProductId(@Param("productId") Long productId);
 }

@@ -11,13 +11,17 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
     
+    Optional<User> findByEmailAndDeletedFalse(String email);
+    
+    Optional<User> findByPhoneAndDeletedFalse(String phone);
+    
     Optional<User> findByEmail(String email);
     
     Optional<User> findByPhone(String phone);
     
-    Boolean existsByEmail(String email);
+    Boolean existsByEmailAndDeletedFalse(String email);
     
-    Boolean existsByPhone(String phone);
+    Boolean existsByPhoneAndDeletedFalse(String phone);
     
     Long countByRoles_Name(Role.RoleType name);
 }

@@ -27,6 +27,7 @@ import {
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useWishlist } from '../../contexts/WishlistContext'
+import api from '../../services/api'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -86,11 +87,8 @@ export default function ProductDetail() {
       setLoading(true)
       try {
         // Fetch by slug - the backend also supports /api/products/slug/{slug} endpoint
-        const response = await fetch(`/api/products/slug/${slug}`)
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        const data = await response.json()
+        const response = await api.get(`/products/slug/${slug}`)
+        const data = response.data || response
         // Handle both ApiResponse wrapper and direct response
         const productData = data.data || data
 
@@ -998,14 +996,6 @@ export default function ProductDetail() {
                         }
                       }
 
-                      const headers: Record<string, string> = {
-                        'Content-Type': 'application/json'
-                      }
-                      
-                      if (token) {
-                        headers['Authorization'] = `Bearer ${token}`
-                      }
-
                       // Determine what to send based on product variations
                       let requestBody: any = {
                         productId: product.id,
@@ -1026,54 +1016,7 @@ export default function ProductDetail() {
                         requestBody.variationId = Array.from(selectedVariations.values())[0].id
                       }
 
-                      const response = await fetch('/api/cart/items', {
-                        method: 'POST',
-                        headers,
-                        body: JSON.stringify(requestBody)
-                      })
-
-                      console.log('Add to cart response status:', response)
-
-                      // Handle 401 - token expired or invalid
-                      if (response.status === 401 && token) {
-                        // Clear invalid tokens
-                        localStorage.removeItem('accessToken')
-                        localStorage.removeItem('token')
-                        localStorage.removeItem('refreshToken')
-                        localStorage.removeItem('user')
-                        
-                        // Retry without token (guest mode) - reuse the same requestBody
-                        const retryResponse = await fetch('/api/cart/items', {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json'
-                          },
-                          body: JSON.stringify(requestBody)
-                        })
-
-                        if (retryResponse.ok) {
-                          const productName = product.name || product.title || 'Product'
-                          const variationText = selectedVariations.size > 0
-                            ? ` (${Array.from(selectedVariations.values()).map(v => v.name).join(', ')})`
-                            : ''
-                          toast.success(`${productName}${variationText} added to cart!`)
-                          setQuantity(1)
-                          setSelectedVariations(new Map())
-                          window.dispatchEvent(new CustomEvent('cartUpdated'))
-                          toast.info('Your session expired. Continue browsing as guest or login again.')
-                          // Navigate to cart page
-                          navigate('/cart')
-                        } else {
-                          const errorData = await retryResponse.json().catch(() => ({}));
-                          toast.error(errorData.message || 'Please login to add items to cart')
-                        }
-                        return
-                      }
-
-                      if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({}));
-                        throw new Error(errorData.message || 'Failed to add to cart')
-                      }
+                      await api.post('/cart/items', requestBody)
 
                       const productName = product.name || product.title || 'Product'
                       const variationText = selectedVariations.size > 0
@@ -1117,23 +1060,12 @@ export default function ProductDetail() {
                       }
 
                       const isFavorited = isInWishlist(product.id)
-                      const method = isFavorited ? 'DELETE' : 'POST'
-                      const response = await fetch(`/api/wishlist/${product.id}`, {
-                        method,
-                        headers: {
-                          'Authorization': `Bearer ${token}`,
-                          'Content-Type': 'application/json'
-                        }
-                      })
-
-                      if (!response.ok) {
-                        throw new Error('Failed to update wishlist')
-                      }
-
-                      // Update local state in context
+                      
                       if (isFavorited) {
+                        await api.delete(`/wishlist/${product.id}`)
                         removeFromWishlist(product.id)
                       } else {
+                        await api.post(`/wishlist/${product.id}`)
                         addToWishlist(product.id)
                       }
 

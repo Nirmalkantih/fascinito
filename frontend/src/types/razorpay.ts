@@ -45,6 +45,7 @@ export interface RazorpayOptions {
     name: string;
     email: string;
     contact: string;
+    method?: string;  // Add support for preferred method
   };
   notes?: {
     [key: string]: string;
@@ -54,6 +55,13 @@ export interface RazorpayOptions {
   };
   modal: {
     ondismiss: () => void;
+  };
+  config?: {
+    display: {
+      preferences?: {
+        show_default_blocks?: boolean;
+      };
+    };
   };
 }
 

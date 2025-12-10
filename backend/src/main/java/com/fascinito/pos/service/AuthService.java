@@ -1,6 +1,7 @@
 package com.fascinito.pos.service;
 
 import com.fascinito.pos.dto.auth.AuthResponse;
+import com.fascinito.pos.dto.auth.FirebaseLoginRequest;
 import com.fascinito.pos.dto.auth.LoginRequest;
 import com.fascinito.pos.dto.auth.RefreshTokenRequest;
 import com.fascinito.pos.dto.auth.SignupRequest;
@@ -24,10 +25,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 
 @Service
 @RequiredArgsConstructor
@@ -44,13 +48,13 @@ public class AuthService {
     @Transactional
     public AuthResponse signup(SignupRequest request) {
         // Check if phone already exists (phone is now the unique identifier)
-        if (userRepository.existsByPhone(request.getPhone())) {
+        if (userRepository.existsByPhoneAndDeletedFalse(request.getPhone())) {
             throw new BadRequestException("Phone number is already registered!");
         }
         
         // Check if email is provided and already exists
         if (request.getEmail() != null && !request.getEmail().trim().isEmpty() 
-            && userRepository.existsByEmail(request.getEmail())) {
+            && userRepository.existsByEmailAndDeletedFalse(request.getEmail())) {
             throw new BadRequestException("Email is already taken!");
         }
 
@@ -89,14 +93,77 @@ public class AuthService {
 
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
         // Try to find user by email or phone
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .or(() -> userRepository.findByPhone(userDetails.getUsername()))
+        User user = userRepository.findByEmailAndDeletedFalse(userDetails.getUsername())
+                .or(() -> userRepository.findByPhoneAndDeletedFalse(userDetails.getUsername()))
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email or phone", request.getEmail()));
 
         String accessToken = jwtTokenProvider.generateAccessToken(userDetails);
         String refreshToken = createRefreshToken(user);
 
         return buildAuthResponse(user, accessToken, refreshToken);
+    }
+
+    @Transactional
+    public AuthResponse firebaseLogin(FirebaseLoginRequest request) {
+        try {
+            // Decode Firebase ID token (JWT) to get phone number
+            String[] parts = request.getIdToken().split("\\.");
+            if (parts.length != 3) {
+                throw new BadRequestException("Invalid Firebase ID token format");
+            }
+
+            // Decode the payload (second part)
+            String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode payloadNode = mapper.readTree(payload);
+
+            // Extract phone number from the token
+            String phoneNumber = payloadNode.has("phone_number") 
+                ? payloadNode.get("phone_number").asText() 
+                : null;
+
+            if (phoneNumber == null || phoneNumber.isEmpty()) {
+                throw new BadRequestException("Phone number not found in Firebase token");
+            }
+
+            System.out.println("Firebase phone from token: " + phoneNumber);
+
+            // Try to find user - first with exact match (E.164 format)
+            User user = userRepository.findByPhoneAndDeletedFalse(phoneNumber).orElse(null);
+            
+            // If not found, try normalized version (without country code)
+            if (user == null) {
+                String normalizedPhone = phoneNumber;
+                if (phoneNumber.startsWith("+91")) {
+                    normalizedPhone = phoneNumber.substring(3); // Remove +91
+                } else if (phoneNumber.startsWith("+")) {
+                    normalizedPhone = phoneNumber.substring(1); // Remove +
+                }
+                
+                System.out.println("Trying normalized phone: " + normalizedPhone);
+                user = userRepository.findByPhoneAndDeletedFalse(normalizedPhone).orElse(null);
+            }
+            
+            if (user == null) {
+                throw new ResourceNotFoundException("User", "phone", phoneNumber);
+            }
+
+            System.out.println("Found user: " + user.getId() + ", active: " + user.getActive());
+
+            if (!user.getActive()) {
+                throw new BadRequestException("User account is not active");
+            }
+
+            // Use phone as username for UserDetails
+            String username = user.getPhone();
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            String accessToken = jwtTokenProvider.generateAccessToken(userDetails);
+            String refreshToken = createRefreshToken(user);
+
+            return buildAuthResponse(user, accessToken, refreshToken);
+        } catch (Exception e) {
+            throw new BadRequestException("Failed to authenticate with Firebase token: " + e.getMessage());
+        }
     }
 
     @Transactional
@@ -123,8 +190,8 @@ public class AuthService {
 
     @Transactional
     public void logout(String emailOrPhone) {
-        User user = userRepository.findByEmail(emailOrPhone)
-                .or(() -> userRepository.findByPhone(emailOrPhone))
+        User user = userRepository.findByEmailAndDeletedFalse(emailOrPhone)
+                .or(() -> userRepository.findByPhoneAndDeletedFalse(emailOrPhone))
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email or phone", emailOrPhone));
         refreshTokenRepository.deleteByUser(user);
     }
@@ -167,7 +234,7 @@ public class AuthService {
 
     @Transactional
     public void sendPasswordResetCode(String email) {
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailAndDeletedFalse(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
         // Generate 6-digit reset code
@@ -186,7 +253,7 @@ public class AuthService {
 
     @Transactional
     public void verifyResetCode(String email, String code) {
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailAndDeletedFalse(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
         if (user.getResetCode() == null || user.getResetCodeExpiry() == null) {
@@ -207,7 +274,7 @@ public class AuthService {
 
     @Transactional
     public void resetPassword(String email, String code, String newPassword) {
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailAndDeletedFalse(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
         // Verify the reset code first
@@ -221,6 +288,23 @@ public class AuthService {
         userRepository.save(user);
 
         // Revoke all refresh tokens
+        refreshTokenRepository.deleteByUser(user);
+    }
+
+    @Transactional
+    public void deleteAccount(String emailOrPhone) {
+        User user = userRepository.findByEmailAndDeletedFalse(emailOrPhone)
+                .or(() -> userRepository.findByPhoneAndDeletedFalse(emailOrPhone))
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email or phone", emailOrPhone));
+
+        // Soft delete: Mark as deleted instead of physically removing
+        user.setDeleted(true);
+        user.setDeletedAt(LocalDateTime.now());
+        user.setActive(false); // Also deactivate the account
+        
+        userRepository.save(user);
+
+        // Delete all refresh tokens to immediately log out the user
         refreshTokenRepository.deleteByUser(user);
     }
 }

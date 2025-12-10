@@ -21,6 +21,7 @@ import {
 import { Visibility as ViewIcon } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import api from '../../services/api'
 
 interface OrderItem {
   id: number
@@ -65,18 +66,7 @@ export default function Orders() {
         return
       }
 
-      const response = await fetch(`/api/orders?page=${page}&size=${rowsPerPage}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch orders')
-      }
-
-      const data = await response.json()
+      const data = await api.get(`/orders?page=${page}&size=${rowsPerPage}`)
       setOrders(data.data?.content || [])
     } catch (error) {
       console.error('Error fetching orders:', error)

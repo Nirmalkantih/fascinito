@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import api from '../../services/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -83,30 +84,9 @@ export default function Cart() {
   const fetchCart = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-
-      // Build headers with optional authorization
-      const headers: any = {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
-
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      const response = await fetch('/api/cart', {
-        headers
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch cart')
-      }
-
-      const data = await response.json()
-      const items = data.data?.items || []
+      const response = await api.get('/cart')
+      const data = response.data || response
+      const items = data?.items || []
 
       // Map API response to CartItem interface
       const mappedItems = items.map((item: any) => ({
@@ -122,10 +102,10 @@ export default function Cart() {
       
       // Set cart summary from API response
       setCartSummary({
-        subtotal: parseFloat(data.data?.subtotal) || 0,
-        tax: parseFloat(data.data?.tax) || 0,
-        shipping: parseFloat(data.data?.shipping) || 0,
-        total: parseFloat(data.data?.totalAmount) || 0
+        subtotal: parseFloat(data?.subtotal) || 0,
+        tax: parseFloat(data?.tax) || 0,
+        shipping: parseFloat(data?.shipping) || 0,
+        total: parseFloat(data?.totalAmount) || 0
       })
     } catch (error) {
       console.error('Error fetching cart:', error)
@@ -142,35 +122,13 @@ export default function Cart() {
 
   const updateQuantity = async (cartItemId: number, delta: number) => {
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
       const currentItem = cartItems.find(item => item.id === cartItemId)
 
       if (!currentItem) return
 
       const newQuantity = Math.max(1, currentItem.quantity + delta)
 
-      // Build headers with optional authorization
-      const headers: any = {
-        'Content-Type': 'application/json'
-      }
-
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      const response = await fetch(`/api/cart/items/${cartItemId}`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({ quantity: newQuantity })
-      })
-
-      if (!response.ok) {
-        // Only show error if user is authenticated
-        if (token) {
-          throw new Error('Failed to update quantity')
-        }
-        return
-      }
+      await api.put(`/cart/items/${cartItemId}`, { quantity: newQuantity })
 
       // Update local state after successful API call
       setCartItems(items =>
@@ -191,29 +149,7 @@ export default function Cart() {
 
   const removeItem = async (cartItemId: number) => {
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-
-      // Build headers with optional authorization
-      const headers: any = {
-        'Content-Type': 'application/json'
-      }
-
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      const response = await fetch(`/api/cart/items/${cartItemId}`, {
-        method: 'DELETE',
-        headers
-      })
-
-      if (!response.ok) {
-        // Only show error if user is authenticated
-        if (token) {
-          throw new Error('Failed to remove item')
-        }
-        return
-      }
+      await api.delete(`/cart/items/${cartItemId}`)
 
       // Update local state after successful API call
       setCartItems(items => items.filter(item => item.id !== cartItemId))

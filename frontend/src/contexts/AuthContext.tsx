@@ -49,31 +49,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const restoreSession = async () => {
       const token = localStorage.getItem('accessToken')
       const userData = localStorage.getItem('user')
-      const refreshToken = localStorage.getItem('refreshToken')
 
       if (token && userData) {
         try {
-          setUser(JSON.parse(userData))
+          // Parse and set user data
+          const parsedUser = JSON.parse(userData)
+          setUser(parsedUser)
+          authService.setAccessToken(token)
         } catch (error) {
           console.error('Error parsing user data:', error)
+          // Clear invalid data
           localStorage.removeItem('accessToken')
-          localStorage.removeItem('refreshToken')
           localStorage.removeItem('user')
         }
-      } else if (refreshToken && !token) {
-        // Try to refresh the token if refresh token exists but access token is missing
-        try {
-          const response = await authService.refreshToken(refreshToken)
-          localStorage.setItem('accessToken', response.accessToken)
-          const userData = JSON.parse(localStorage.getItem('user') || '{}')
-          setUser(userData)
-        } catch (error) {
-          console.error('Error refreshing token:', error)
-          localStorage.removeItem('accessToken')
-          localStorage.removeItem('refreshToken')
-          localStorage.removeItem('user')
-        }
+      } else if (token && !userData) {
+        // Token exists but no user data - clear token
+        localStorage.removeItem('accessToken')
       }
+      
       setLoading(false)
     }
 
@@ -84,19 +77,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authService.login({ email: phoneOrEmail, password })
       console.log('🔐 Login Response:', response)
-      const { accessToken, refreshToken, userId, ...userData } = response
       
-      localStorage.setItem('accessToken', accessToken)
-      localStorage.setItem('refreshToken', refreshToken)
+      const { accessToken, userId, ...userData } = response
+      
+      // Store access token (refresh token is in httpOnly cookie)
+      authService.setAccessToken(accessToken)
+      
+      // Create user object
       const user = { id: userId, ...userData }
       console.log('👤 User Object:', user)
       console.log('🎭 User Roles:', user.roles)
+      
+      // Store user data
       localStorage.setItem('user', JSON.stringify(user))
       
       setUser(user)
       toast.success('Login successful!')
     } catch (error: any) {
-      toast.error(error.message || 'Login failed')
+      const errorMessage = error.response?.data?.message || error.message || 'Login failed'
+      toast.error(errorMessage)
       throw error
     }
   }
@@ -104,31 +103,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signup = async (data: SignupData) => {
     try {
       const response = await authService.signup(data)
-      const { accessToken, refreshToken, userId, ...userData } = response
+      const { accessToken, userId, ...userData } = response
       
-      localStorage.setItem('accessToken', accessToken)
-      localStorage.setItem('refreshToken', refreshToken)
+      // Store access token (refresh token is in httpOnly cookie)
+      authService.setAccessToken(accessToken)
+      
+      // Create user object
       const user = { id: userId, ...userData }
       localStorage.setItem('user', JSON.stringify(user))
       
       setUser(user)
       toast.success('Account created successfully!')
     } catch (error: any) {
-      toast.error(error.message || 'Signup failed')
+      const errorMessage = error.response?.data?.message || error.message || 'Signup failed'
+      toast.error(errorMessage)
       throw error
     }
   }
 
   const logout = () => {
     try {
+      // Call logout API (clears refresh token cookie on server)
       authService.logout()
     } catch (error) {
       console.error('Error during logout:', error)
     }
+    
+    // Clear local state
     localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
     localStorage.removeItem('user')
     setUser(null)
+    
     toast.info('Logged out successfully')
     window.location.href = '/login'
   }
