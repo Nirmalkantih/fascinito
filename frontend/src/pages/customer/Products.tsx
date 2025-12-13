@@ -73,6 +73,10 @@ export default function Products() {
   const [page, setPage] = useState(1)
   const [allProducts, setAllProducts] = useState<Product[]>([])
 
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
 
   // Fetch products from API
   useEffect(() => {

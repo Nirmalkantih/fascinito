@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import CustomerLayout from './layouts/CustomerLayout'
 import AdminLayout from './layouts/AdminLayout'
 import Login from './pages/auth/Login'
+import AdminLogin from './pages/auth/AdminLogin'
 import Signup from './pages/auth/Signup'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import Home from './pages/customer/Home'
@@ -17,6 +18,7 @@ import Checkout from './pages/customer/Checkout'
 import OrderSuccess from './pages/customer/OrderSuccess'
 import Profile from './pages/customer/Profile'
 import Orders from './pages/customer/Orders'
+import OrderDetailsPage from './pages/customer/OrderDetailsPage'
 import Settings from './pages/customer/Settings'
 import AdminDashboard from './pages/admin/DashboardEnhanced'
 import AdminProducts from './pages/admin/Products'
@@ -75,6 +77,7 @@ function App() {
         <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
+      <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
@@ -108,6 +111,10 @@ function App() {
           element={isAuthenticated ? <Orders /> : <Navigate to="/login" />}
         />
         <Route
+          path="order-details/:orderId"
+          element={isAuthenticated ? <OrderDetailsPage /> : <Navigate to="/login" />}
+        />
+        <Route
           path="settings"
           element={isAuthenticated ? <Settings /> : <Navigate to="/login" />}
         />
@@ -120,7 +127,7 @@ function App() {
           isAuthenticated && (user?.roles?.includes('ROLE_ADMIN') || user?.roles?.includes('ROLE_STAFF')) ? (
             <AdminLayout />
           ) : (
-            <Navigate to="/login" />
+            <Navigate to="/admin/login" />
           )
         }
       >

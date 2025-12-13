@@ -9,7 +9,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Chip,
   Button,
   TextField,
   InputAdornment,
@@ -27,13 +26,13 @@ import {
   FilterList,
   ShoppingCart,
   CheckCircle,
-  LocalShipping,
-  Cancel,
   Visibility,
   AttachMoney,
   Refresh
 } from '@mui/icons-material';
 import api from '../../services/api';
+import { usePermissions } from '../../hooks/usePermissions';
+import OrderStatusDropdown from '../../components/OrderStatusDropdown';
 
 interface Order {
   id: number;
@@ -49,6 +48,7 @@ interface Order {
 
 export default function OrdersEnhanced() {
   const theme = useTheme();
+  const { isAdmin } = usePermissions();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -69,38 +69,6 @@ export default function OrdersEnhanced() {
       setOrders([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'delivered':
-        return 'success';
-      case 'shipped':
-        return 'info';
-      case 'processing':
-        return 'warning';
-      case 'pending':
-        return 'default';
-      case 'cancelled':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'delivered':
-        return <CheckCircle fontSize="small" />;
-      case 'shipped':
-        return <LocalShipping fontSize="small" />;
-      case 'processing':
-        return <ShoppingCart fontSize="small" />;
-      case 'cancelled':
-        return <Cancel fontSize="small" />;
-      default:
-        return null;
     }
   };
 
@@ -146,9 +114,10 @@ export default function OrdersEnhanced() {
       title: 'Total Revenue',
       value: `$${orders.reduce((sum, o) => o.status?.toLowerCase() !== 'cancelled' ? sum + (o.totalAmount || 0) : sum, 0).toFixed(2)}`,
       icon: <AttachMoney />,
-      color: '#f093fb'
+      color: '#f093fb',
+      adminOnly: true
     },
-  ];
+  ].filter(stat => !stat.adminOnly || isAdmin());
 
   return (
     <Box>
@@ -342,12 +311,10 @@ export default function OrdersEnhanced() {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      {...(getStatusIcon(order.status) && { icon: getStatusIcon(order.status)! })}
-                      label={order.status?.toUpperCase() || 'UNKNOWN'}
-                      color={getStatusColor(order.status) as any}
-                      size="small"
-                      sx={{ fontWeight: 600 }}
+                    <OrderStatusDropdown
+                      orderId={order.id}
+                      currentStatus={order.status}
+                      onStatusUpdate={() => fetchOrders()}
                     />
                   </TableCell>
                   <TableCell>{new Date(order.createdAtTimestamp).toLocaleDateString()}</TableCell>

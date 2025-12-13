@@ -93,6 +93,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       setUser(user)
       toast.success('Login successful!')
+      
+      // Redirect based on role
+      if (user.roles?.includes('ROLE_ADMIN') || user.roles?.includes('ROLE_STAFF')) {
+        window.location.href = '/admin'
+      } else {
+        window.location.href = '/'
+      }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || 'Login failed'
       toast.error(errorMessage)

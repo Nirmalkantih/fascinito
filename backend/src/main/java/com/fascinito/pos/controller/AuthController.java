@@ -82,6 +82,15 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Login successful", authResponse));
     }
 
+    @GetMapping("/check-phone")
+    public ResponseEntity<ApiResponse<Boolean>> checkPhoneExists(@RequestParam String phone) {
+        boolean exists = authService.phoneExists(phone);
+        return ResponseEntity.ok(ApiResponse.success(
+            exists ? "Phone number already registered" : "Phone number available",
+            exists
+        ));
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(
             HttpServletRequest request,

@@ -5,6 +5,9 @@ import com.fascinito.pos.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -21,4 +24,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Page<Order> findByStatus(Order.OrderStatus status, Pageable pageable);
     
     List<Order> findByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate);
+    
+    @EntityGraph(attributePaths = {"items", "items.product", "items.product.images"})
+    @Query("SELECT o FROM Order o WHERE o.id = :orderId")
+    Optional<Order> findByIdWithDetails(@Param("orderId") Long orderId);
 }
+

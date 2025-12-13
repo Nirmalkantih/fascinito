@@ -29,6 +29,7 @@ import {
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth'
 import { auth } from '../../config/firebase'
 import { useAuth } from '../../contexts/AuthContext'
+import { authService } from '../../services/authService'
 
 export default function Signup() {
   const navigate = useNavigate()
@@ -203,6 +204,18 @@ export default function Signup() {
 
     setLoading(true)
     try {
+      // Check if phone already exists
+      console.log('📞 Checking if phone exists:', phoneNumber)
+      const phoneExists = await authService.checkPhone(phoneNumber)
+      
+      if (phoneExists === true) {
+        setError('⚠️ This phone number is already registered.\n\nPlease login instead or use a different phone number.')
+        setLoading(false)
+        return
+      }
+      
+      console.log('✅ Phone number is available')
+      
       // IMPORTANT: Setup reCAPTCHA before sending OTP
       console.log('🔧 Setting up reCAPTCHA...')
       setupRecaptcha()
@@ -372,10 +385,10 @@ export default function Signup() {
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
-        py: 4,
+        py: 2,
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         position: 'relative',
-        overflow: 'hidden',
+        overflow: 'auto',
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -387,11 +400,11 @@ export default function Signup() {
         },
       }}
     >
-      <Container component="main" maxWidth="sm">
+      <Container component="main" maxWidth="sm" sx={{ my: 'auto' }}>
         <Paper
           elevation={24}
           sx={{
-            p: { xs: 3, sm: 5 },
+            p: { xs: 2, sm: 3 },
             borderRadius: 4,
             position: 'relative',
             zIndex: 1,
@@ -399,14 +412,14 @@ export default function Signup() {
             background: 'rgba(255, 255, 255, 0.95)',
           }}
         >
-          <Box sx={{ textAlign: 'center', mb: 4 }}>
+          <Box sx={{ textAlign: 'center', mb: 2 }}>
             <Box
               sx={{
-                width: 80,
-                height: 80,
-                margin: '0 auto 16px',
+                width: 60,
+                height: 60,
+                margin: '0 auto 12px',
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                borderRadius: '20px',
+                borderRadius: '16px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -414,13 +427,13 @@ export default function Signup() {
               }}
             >
               {activeStep === 0 ? (
-                <PersonAdd sx={{ fontSize: 40, color: 'white' }} />
+                <PersonAdd sx={{ fontSize: 32, color: 'white' }} />
               ) : (
-                <VerifiedUser sx={{ fontSize: 40, color: 'white' }} />
+                <VerifiedUser sx={{ fontSize: 32, color: 'white' }} />
               )}
             </Box>
             <Typography
-              variant="h4"
+              variant="h5"
               gutterBottom
               sx={{
                 fontWeight: 800,
@@ -432,14 +445,14 @@ export default function Signup() {
             >
               {activeStep === 0 ? 'Create Account' : 'Verify Phone Number'}
             </Typography>
-            <Typography variant="body1" color="text.secondary">
+            <Typography variant="body2" color="text.secondary">
               {activeStep === 0 
                 ? 'Join us today and start shopping!' 
                 : 'Enter the 6-digit code sent to your phone'}
             </Typography>
           </Box>
 
-          <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+          <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
             {steps.map((label) => (
               <Step key={label}>
                 <StepLabel>{label}</StepLabel>
@@ -448,7 +461,7 @@ export default function Signup() {
           </Stepper>
 
           {error && (
-            <Alert severity="error" sx={{ mb: 3, borderRadius: 2, whiteSpace: 'pre-line' }}>
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 2, whiteSpace: 'pre-line' }}>
               {error}
             </Alert>
           )}
@@ -457,7 +470,7 @@ export default function Signup() {
             {activeStep === 0 ? (
               // Step 1: User Details
               <>
-                <Grid container spacing={2}>
+                <Grid container spacing={2} sx={{ mt: 0.5 }}>
                   <Grid item xs={12} sm={6}>
                     <TextField
                       required
@@ -595,8 +608,8 @@ export default function Signup() {
                   size="large"
                   disabled={loading}
                   sx={{
-                    mt: 3,
-                    mb: 2,
+                    mt: 2,
+                    mb: 1.5,
                     py: 1.5,
                     fontSize: '1rem',
                     fontWeight: 700,
@@ -612,7 +625,7 @@ export default function Signup() {
             ) : (
               // Step 2: OTP Verification
               <>
-                <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+                <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
                   We've sent a 6-digit verification code to{' '}
                   <strong>
                     {detectedCountry?.flag} {detectedCountry?.dialCode} {formData.phone}
@@ -636,7 +649,7 @@ export default function Signup() {
                     style: { fontSize: '24px', textAlign: 'center', letterSpacing: '8px' },
                   }}
                   helperText="Enter the 6-digit code"
-                  sx={{ mt: 2 }}
+                  sx={{ mt: 1 }}
                 />
 
                 <Button
@@ -646,8 +659,8 @@ export default function Signup() {
                   size="large"
                   disabled={loading || otp.length !== 6}
                   sx={{
-                    mt: 3,
-                    mb: 2,
+                    mt: 2,
+                    mb: 1.5,
                     py: 1.5,
                     fontSize: '1rem',
                     fontWeight: 700,
@@ -697,7 +710,7 @@ export default function Signup() {
               </>
             )}
 
-            <Box sx={{ textAlign: 'center' }}>
+            <Box sx={{ textAlign: 'center', mt: 1 }}>
               <Typography variant="body2" color="text.secondary">
                 Already have an account?{' '}
                 <Link

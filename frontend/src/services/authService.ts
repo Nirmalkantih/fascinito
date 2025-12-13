@@ -72,6 +72,14 @@ class AuthService {
   }
 
   /**
+   * Check if phone number already exists
+   */
+  async checkPhone(phone: string): Promise<boolean> {
+    const response = await api.get<any, any>(`/auth/check-phone?phone=${encodeURIComponent(phone)}`)
+    return response.data
+  }
+
+  /**
    * Logout user (clears access token and refresh token cookie)
    */
   async logout(): Promise<void> {

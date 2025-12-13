@@ -199,7 +199,7 @@ export default function Orders() {
                         size="small"
                         variant="outlined"
                         startIcon={<ViewIcon />}
-                        onClick={() => navigate(`/order-success/${order.id}`)}
+                        onClick={() => navigate(`/order-details/${order.id}`)}
                       >
                         View
                       </Button>

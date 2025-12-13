@@ -14,9 +14,11 @@ import {
 } from '@mui/icons-material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import api from '../../services/api';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export default function DashboardEnhanced() {
   const theme = useTheme();
+  const { isAdmin } = usePermissions();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
     totalProducts: 0,
@@ -132,23 +134,26 @@ export default function DashboardEnhanced() {
       value: `$${stats.totalRevenue.toLocaleString()}`, 
       icon: <AttachMoney sx={{ fontSize: 32 }} />,
       gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-      change: '+32%'
+      change: '+32%',
+      adminOnly: true
     },
     { 
       title: 'Total Profit', 
       value: `$${stats.totalProfit.toLocaleString()}`, 
       icon: <TrendingUp sx={{ fontSize: 32 }} />,
       gradient: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
-      change: '+15%'
+      change: '+15%',
+      adminOnly: true
     },
     { 
       title: 'Total Spending', 
       value: `$${stats.totalSpending.toLocaleString()}`, 
       icon: <LocalAtm sx={{ fontSize: 32 }} />,
       gradient: 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)',
-      change: '+22%'
+      change: '+22%',
+      adminOnly: true
     }
-  ];
+  ].filter(card => !card.adminOnly || isAdmin());
 
   return (
     <Box>
@@ -242,61 +247,63 @@ export default function DashboardEnhanced() {
       </Grid>
 
       <Grid container spacing={3}>
-        {/* Sales by Location */}
-        <Grid item xs={12} lg={8}>
-          <Paper sx={{ p: 3, borderRadius: 3, boxShadow: theme.shadows[4] }}>
-            <Typography 
-              variant="h5" 
-              gutterBottom 
-              sx={{ 
-                fontWeight: 700,
-                mb: 3,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}
-            >
-              Revenue, Profit & Spending by Location
-            </Typography>
-            {locationSalesData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={locationSalesData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.3)} />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
-                  />
-                  <YAxis 
-                    tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
-                    tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-                  />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: theme.palette.background.paper,
-                      border: `1px solid ${theme.palette.divider}`,
-                      borderRadius: 8,
-                      boxShadow: theme.shadows[4]
-                    }}
-                    formatter={(value: any) => `$${value.toLocaleString()}`}
-                  />
-                  <Legend />
-                  <Bar dataKey="revenue" name="Revenue" fill="#667eea" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="profit" name="Profit" fill="#43e97b" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="spending" name="Spending" fill="#f5576c" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 350 }}>
-                <Typography variant="body1" color="text.secondary">
-                  No location data available. Add products with locations to see analytics.
-                </Typography>
-              </Box>
-            )}
-          </Paper>
-        </Grid>
+        {/* Sales by Location - Admin Only */}
+        {isAdmin() && (
+          <Grid item xs={12} lg={8}>
+            <Paper sx={{ p: 3, borderRadius: 3, boxShadow: theme.shadows[4] }}>
+              <Typography 
+                variant="h5" 
+                gutterBottom 
+                sx={{ 
+                  fontWeight: 700,
+                  mb: 3,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}
+              >
+                Revenue, Profit & Spending by Location
+              </Typography>
+              {locationSalesData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={locationSalesData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.3)} />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
+                    />
+                    <YAxis 
+                      tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
+                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: theme.palette.background.paper,
+                        border: `1px solid ${theme.palette.divider}`,
+                        borderRadius: 8,
+                        boxShadow: theme.shadows[4]
+                      }}
+                      formatter={(value: any) => `$${value.toLocaleString()}`}
+                    />
+                    <Legend />
+                    <Bar dataKey="revenue" name="Revenue" fill="#667eea" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="profit" name="Profit" fill="#43e97b" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="spending" name="Spending" fill="#f5576c" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 350 }}>
+                  <Typography variant="body1" color="text.secondary">
+                    No location data available. Add products with locations to see analytics.
+                  </Typography>
+                </Box>
+              )}
+            </Paper>
+          </Grid>
+        )}
 
         {/* Category Distribution */}
-        <Grid item xs={12} lg={4}>
+        <Grid item xs={12} lg={isAdmin() ? 4 : 12}>
           <Paper sx={{ p: 3, borderRadius: 3, boxShadow: theme.shadows[4], height: '100%' }}>
             <Typography 
               variant="h5" 
@@ -341,22 +348,23 @@ export default function DashboardEnhanced() {
           </Paper>
         </Grid>
 
-        {/* Monthly Trend */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3, borderRadius: 3, boxShadow: theme.shadows[4] }}>
-            <Typography 
-              variant="h5" 
-              gutterBottom 
-              sx={{ 
-                fontWeight: 700,
-                mb: 3,
-                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}
-            >
-              Monthly Revenue & Profit Trend
-            </Typography>
+        {/* Monthly Trend - Admin Only */}
+        {isAdmin() && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3, borderRadius: 3, boxShadow: theme.shadows[4] }}>
+              <Typography 
+                variant="h5" 
+                gutterBottom 
+                sx={{ 
+                  fontWeight: 700,
+                  mb: 3,
+                  background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}
+              >
+                Monthly Revenue & Profit Trend
+              </Typography>
             {monthlyTrendData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={monthlyTrendData}>
@@ -408,6 +416,7 @@ export default function DashboardEnhanced() {
             )}
           </Paper>
         </Grid>
+        )}
       </Grid>
     </Box>
   );

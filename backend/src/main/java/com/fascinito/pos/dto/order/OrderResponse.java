@@ -27,6 +27,7 @@ public class OrderResponse {
     private String notes;
     private List<OrderItemResponse> items = new ArrayList<>();
     private PaymentResponse payment;
+    private List<OrderStatusHistoryResponse> statusHistory = new ArrayList<>();
     private Long createdAtTimestamp;
     private Long updatedAtTimestamp;
 }

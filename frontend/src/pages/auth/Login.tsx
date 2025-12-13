@@ -490,6 +490,20 @@ export default function Login() {
                   Sign Up
                 </Link>
               </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Admin or Staff?{' '}
+                <Link
+                  href="/admin/login"
+                  sx={{
+                    color: 'primary.main',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    '&:hover': { textDecoration: 'underline' },
+                  }}
+                >
+                  Admin Login
+                </Link>
+              </Typography>
             </Box>
           </Box>
         </Paper>

@@ -45,7 +45,7 @@ public class SecurityConfig {
                 // Public auth endpoints - no authentication required
                 .requestMatchers("/auth/signup", "/auth/login", "/auth/firebase-login", "/auth/refresh", 
                                 "/auth/forgot-password", "/auth/verify-reset-code", 
-                                "/auth/reset-password", "/auth/send-otp", "/auth/verify-otp").permitAll()
+                                "/auth/reset-password", "/auth/send-otp", "/auth/verify-otp", "/auth/check-phone").permitAll()
                 // Protected auth endpoints - require authentication
                 .requestMatchers("/auth/logout", "/auth/delete-account").authenticated()
                 // Other public endpoints

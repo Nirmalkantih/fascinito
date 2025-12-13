@@ -328,6 +328,7 @@ CREATE TABLE IF NOT EXISTS payments (
 INSERT INTO roles (name, description) VALUES
 ('ROLE_CUSTOMER', 'Customer role for shopping'),
 ('ROLE_ADMIN', 'Administrator role with full access'),
+('ROLE_STAFF', 'Staff role with limited admin access'),
 ('ROLE_VENDOR', 'Vendor role for managing their products')
 ON DUPLICATE KEY UPDATE description=VALUES(description);
 

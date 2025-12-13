@@ -307,4 +307,30 @@ public class AuthService {
         // Delete all refresh tokens to immediately log out the user
         refreshTokenRepository.deleteByUser(user);
     }
+
+    public boolean phoneExists(String phone) {
+        // Normalize phone number - try both with and without +91
+        String normalizedPhone = phone.trim();
+        
+        // Check exact match first
+        if (userRepository.existsByPhoneAndDeletedFalse(normalizedPhone)) {
+            return true;
+        }
+        
+        // If phone starts with +91, also check without it
+        if (normalizedPhone.startsWith("+91")) {
+            String withoutCode = normalizedPhone.substring(3);
+            if (userRepository.existsByPhoneAndDeletedFalse(withoutCode)) {
+                return true;
+            }
+        } else {
+            // If phone doesn't have +91, also check with it
+            String withCode = "+91" + normalizedPhone;
+            if (userRepository.existsByPhoneAndDeletedFalse(withCode)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
 }

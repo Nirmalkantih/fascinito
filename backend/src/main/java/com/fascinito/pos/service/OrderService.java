@@ -12,10 +12,13 @@ import com.fascinito.pos.repository.ProductVariantCombinationRepository;
 import com.fascinito.pos.repository.VariationOptionRepository;
 import com.fascinito.pos.repository.UserRepository;
 import com.fascinito.pos.repository.PaymentRepository;
+import com.fascinito.pos.repository.OrderStatusHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +41,7 @@ public class OrderService {
     private final VariationOptionRepository variationOptionRepository;
     private final UserRepository userRepository;
     private final PaymentRepository paymentRepository;
+    private final OrderStatusHistoryRepository statusHistoryRepository;
 
     /**
      * Create order from cart with stock deduction
@@ -139,6 +143,15 @@ public class OrderService {
         // Save order
         Order savedOrder = orderRepository.save(order);
         log.info("Order {} created successfully with total {}", orderNumber, totalAmount);
+
+        // Create initial status history
+        OrderStatusHistory initialHistory = OrderStatusHistory.builder()
+                .order(savedOrder)
+                .status(Order.OrderStatus.PENDING)
+                .updatedBy(user.getEmail())
+                .notes("Order created")
+                .build();
+        statusHistoryRepository.save(initialHistory);
 
         // Create payment record
         Payment payment = Payment.builder()
@@ -287,7 +300,7 @@ public class OrderService {
      */
     @Transactional(readOnly = true)
     public OrderResponse getOrderById(Long orderId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdWithDetails(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
         return mapToResponse(order);
     }
@@ -326,6 +339,7 @@ public class OrderService {
 
     /**
      * Update order status (admin only)
+     * Creates a status history record for tracking
      */
     @Transactional
     public OrderResponse updateOrderStatus(Long orderId, String newStatus) {
@@ -333,11 +347,42 @@ public class OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
         Order.OrderStatus status = Order.OrderStatus.valueOf(newStatus.toUpperCase());
-        order.setStatus(status);
-        orderRepository.save(order);
+        Order.OrderStatus previousStatus = order.getStatus();
+        
+        // Only create history if status actually changed
+        if (previousStatus != status) {
+            order.setStatus(status);
+            orderRepository.save(order);
 
-        log.info("Updated order {} status to {}", orderId, newStatus);
+            // Get current user for tracking who updated the status
+            String updatedBy = getCurrentUsername();
+
+            // Create status history record
+            OrderStatusHistory history = OrderStatusHistory.builder()
+                    .order(order)
+                    .status(status)
+                    .updatedBy(updatedBy)
+                    .notes("Status updated from " + previousStatus + " to " + status)
+                    .build();
+            statusHistoryRepository.save(history);
+
+            log.info("Updated order {} status from {} to {} by {}", orderId, previousStatus, newStatus, updatedBy);
+        } else {
+            log.debug("Order {} status unchanged: {}", orderId, status);
+        }
+
         return mapToResponse(order);
+    }
+
+    /**
+     * Get current authenticated username
+     */
+    private String getCurrentUsername() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()) {
+            return authentication.getName();
+        }
+        return "System";
     }
 
     /**
@@ -470,8 +515,26 @@ public class OrderService {
                                 .build())
                         .collect(Collectors.toList()))
                 .payment(order.getPayment() != null ? mapPaymentToResponse(order.getPayment()) : null)
+                .statusHistory(order.getStatusHistory() != null ? 
+                        order.getStatusHistory().stream()
+                                .map(this::mapStatusHistoryToResponse)
+                                .collect(Collectors.toList()) : 
+                        new ArrayList<>())
                 .createdAtTimestamp(order.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
                 .updatedAtTimestamp(order.getUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
+                .build();
+    }
+
+    /**
+     * Map OrderStatusHistory entity to OrderStatusHistoryResponse DTO
+     */
+    private com.fascinito.pos.dto.order.OrderStatusHistoryResponse mapStatusHistoryToResponse(OrderStatusHistory history) {
+        return com.fascinito.pos.dto.order.OrderStatusHistoryResponse.builder()
+                .id(history.getId())
+                .status(history.getStatus().toString())
+                .notes(history.getNotes())
+                .updatedBy(history.getUpdatedBy())
+                .createdAtTimestamp(history.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
                 .build();
     }
 }

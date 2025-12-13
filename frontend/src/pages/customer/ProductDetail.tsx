@@ -80,6 +80,14 @@ export default function ProductDetail() {
   // Store the specific variant combination details (price, stock, etc.)
   const [selectedVariantCombination, setSelectedVariantCombination] = useState<any>(null)
   const [loadingVariantDetails, setLoadingVariantDetails] = useState(false)
+  // Review state
+  const [reviews, setReviews] = useState<any[]>([])
+  const [userReview, setUserReview] = useState<any>(null)
+  const [reviewRating, setReviewRating] = useState<number>(0)
+  const [reviewComment, setReviewComment] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
+  const [productRating, setProductRating] = useState<any>(null)
+  const [loadingReviews, setLoadingReviews] = useState(false)
 
   // Fetch product from API and check if in wishlist
   useEffect(() => {
@@ -115,6 +123,221 @@ export default function ProductDetail() {
       fetchProduct()
     }
   }, [slug])
+
+  // Fetch reviews and user's review
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!product?.id) return
+
+      setLoadingReviews(true)
+      try {
+        // Fetch all reviews
+        const reviewsResponse = await api.get(`/products/${product.id}/reviews`)
+        const reviewsData = reviewsResponse.data?.data || []
+        setReviews(reviewsData)
+
+        // Fetch product rating
+        const ratingResponse = await api.get(`/products/${product.id}/reviews/rating`)
+        console.log('⭐ Rating response:', ratingResponse.data)
+        const ratingData = ratingResponse.data?.data || ratingResponse.data || null
+        console.log('⭐ Rating data:', ratingData)
+        setProductRating(ratingData)
+
+        // Fetch user's review if logged in
+        const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
+        console.log('🔐 Token found:', !!token)
+        if (token) {
+          try {
+            console.log('🔍 Fetching user review from:', `/products/${product.id}/reviews/my-review`)
+            const userReviewResponse = await api.get(`/products/${product.id}/reviews/my-review`)
+            console.log('📦 User review response:', userReviewResponse.data)
+            
+            // The response might be wrapped in ApiResponse or direct data
+            // Try both: response.data.data (wrapped) OR response.data (direct)
+            let userReviewData = userReviewResponse.data?.data || userReviewResponse.data
+            
+            // Check if it's actually a review object (has id and rating properties)
+            const isValidReview = userReviewData && typeof userReviewData === 'object' && 
+                                  'id' in userReviewData && 'rating' in userReviewData
+            
+            console.log('🔍 userReviewData:', userReviewData)
+            console.log('🔍 isValidReview:', isValidReview)
+            
+            if (isValidReview) {
+              setUserReview(userReviewData)
+              setReviewRating(userReviewData.rating)
+              setReviewComment(userReviewData.comment || '')
+              console.log('✅ User review loaded:', userReviewData)
+            } else {
+              // User hasn't reviewed yet - reset form
+              setUserReview(null)
+              setReviewRating(0)
+              setReviewComment('')
+              console.log('ℹ️ No existing review from user')
+            }
+          } catch (error: any) {
+            // User hasn't reviewed yet or authentication error - reset form
+            setUserReview(null)
+            setReviewRating(0)
+            setReviewComment('')
+            console.log('⚠️ Error fetching user review:')
+            console.log('   Status:', error.response?.status)
+            console.log('   Message:', error.message)
+            console.log('   Response data:', error.response?.data)
+          }
+        } else {
+          // Not logged in - reset form
+          setUserReview(null)
+          setReviewRating(0)
+          setReviewComment('')
+          console.log('ℹ️ User not logged in - no token found')
+        }
+      } catch (error) {
+        console.error('❌ Error fetching reviews:', error)
+      } finally {
+        setLoadingReviews(false)
+      }
+    }
+
+    fetchReviews()
+  }, [product?.id])
+
+  // Log productRating changes
+  useEffect(() => {
+    console.log('🌟 productRating state changed:', productRating)
+  }, [productRating])
+
+  // Submit or update review
+  const handleSubmitReview = async () => {
+    console.log('🔄 Submit review clicked')
+    console.log('   userReview state:', userReview)
+    console.log('   reviewRating:', reviewRating)
+    console.log('   reviewComment:', reviewComment)
+    
+    if (!product?.id) {
+      console.log('❌ No product ID')
+      return
+    }
+    if (reviewRating === 0) {
+      toast.error('Please select a rating')
+      return
+    }
+
+    const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
+    if (!token) {
+      toast.error('Please log in to submit a review')
+      navigate('/login')
+      return
+    }
+
+    setSubmittingReview(true)
+
+    try {
+      const reviewData = {
+        rating: reviewRating,
+        comment: reviewComment
+      }
+
+      let response
+      if (userReview) {
+        // Update existing review
+        console.log('✏️ Updating existing review:', userReview.id)
+        response = await api.put(`/products/${product.id}/reviews/${userReview.id}`, reviewData)
+        console.log('📦 Update response:', response.data)
+        toast.success('Review updated successfully!')
+      } else {
+        // Create new review
+        console.log('✍️ Creating new review')
+        response = await api.post(`/products/${product.id}/reviews`, reviewData)
+        console.log('📦 Create response:', response.data)
+        toast.success('Review submitted successfully!')
+      }
+
+      // Refresh reviews
+      const reviewsResponse = await api.get(`/products/${product.id}/reviews`)
+      setReviews(reviewsResponse.data?.data || [])
+
+      // Update product rating
+      const ratingResponse = await api.get(`/products/${product.id}/reviews/rating`)
+      console.log('⭐ Rating response after submit:', ratingResponse.data)
+      const updatedRating = ratingResponse.data?.data || ratingResponse.data || null
+      console.log('⭐ Updated rating data:', updatedRating)
+      setProductRating(updatedRating)
+
+      // Update user review state from response
+      // Try both wrapped (data.data) and direct (data) response formats
+      const newUserReview = response.data?.data || response.data
+      console.log('🔍 Response data structure:', response.data)
+      console.log('🔍 newUserReview:', newUserReview)
+      
+      // Check if it's a valid review object
+      const isValidReview = newUserReview && typeof newUserReview === 'object' && 
+                           'id' in newUserReview && 'rating' in newUserReview
+      
+      if (isValidReview) {
+        setUserReview(newUserReview)
+        setReviewRating(newUserReview.rating || 0)
+        setReviewComment(newUserReview.comment || '')
+        console.log('✅ Review state updated successfully:', newUserReview)
+      } else {
+        // Fallback: Fetch user review again to ensure state is correct
+        console.log('⚠️ No review data in response, fetching again...')
+        try {
+          const userReviewResponse = await api.get(`/products/${product.id}/reviews/my-review`)
+          // Try both wrapped and direct formats
+          const fetchedReview = userReviewResponse.data?.data || userReviewResponse.data
+          const isFetchedValid = fetchedReview && typeof fetchedReview === 'object' && 
+                                'id' in fetchedReview && 'rating' in fetchedReview
+          
+          if (isFetchedValid) {
+            setUserReview(fetchedReview)
+            setReviewRating(fetchedReview.rating || 0)
+            setReviewComment(fetchedReview.comment || '')
+            console.log('✅ Review state updated from fetch:', fetchedReview)
+          }
+        } catch (fetchError) {
+          console.error('❌ Error fetching user review after submit:', fetchError)
+        }
+      }
+    } catch (error: any) {
+      console.error('❌ Error submitting review:', error)
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to submit review'
+      toast.error(errorMessage)
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
+
+  // Delete review
+  const handleDeleteReview = async () => {
+    if (!product?.id || !userReview?.id) return
+
+    if (!confirm('Are you sure you want to delete your review?')) return
+
+    try {
+      await api.delete(`/products/${product.id}/reviews/${userReview.id}`)
+      toast.success('Review deleted successfully!')
+
+      // Refresh reviews
+      const reviewsResponse = await api.get(`/products/${product.id}/reviews`)
+      setReviews(reviewsResponse.data?.data || [])
+
+      // Update product rating
+      const ratingResponse = await api.get(`/products/${product.id}/reviews/rating`)
+      console.log('⭐ Rating response after delete:', ratingResponse.data)
+      const updatedRating = ratingResponse.data?.data || ratingResponse.data || null
+      console.log('⭐ Updated rating after delete:', updatedRating)
+      setProductRating(updatedRating)
+
+      // Clear user review state
+      setUserReview(null)
+      setReviewRating(0)
+      setReviewComment('')
+    } catch (error: any) {
+      console.error('Error deleting review:', error)
+      toast.error(error.response?.data?.message || 'Failed to delete review')
+    }
+  }
 
   // Fetch variant combination details when all variations are selected
   useEffect(() => {
@@ -186,6 +409,48 @@ export default function ProductDetail() {
       return 'https://via.placeholder.com/500x500?text=Image+Not+Available'
     }
     return imageUrl
+  }
+
+  // Handler for sharing product
+  const handleShare = async () => {
+    const productUrl = window.location.href
+    const productTitle = product?.title || product?.name || 'Product'
+    const productDescription = product?.description || 'Check out this amazing product!'
+
+    // Check if Web Share API is supported
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: productTitle,
+          text: productDescription,
+          url: productUrl,
+        })
+        toast.success('Product shared successfully!')
+      } catch (error: any) {
+        // User cancelled the share or error occurred
+        if (error.name !== 'AbortError') {
+          console.error('Error sharing:', error)
+          // Fallback to clipboard
+          fallbackCopyToClipboard(productUrl)
+        }
+      }
+    } else {
+      // Fallback: Copy to clipboard
+      fallbackCopyToClipboard(productUrl)
+    }
+  }
+
+  // Fallback function to copy URL to clipboard
+  const fallbackCopyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => {
+        toast.success('Product link copied to clipboard!')
+      },
+      (err) => {
+        console.error('Could not copy text:', err)
+        toast.error('Failed to copy link')
+      }
+    )
   }
 
   // Calculate total price from all selected variation options
@@ -426,104 +691,6 @@ export default function ProductDetail() {
                   </>
                 )}
               </Card>
-
-              {/* Thumbnail Images - Show variation image at top if selected */}
-              {/* Thumbnail Images - Show variation and product images side by side with minimal spacing */}
-              <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1.5, mt: 1 }}>
-                {/* Selected Variations Images - Show all selected variations with images */}
-                {selectedVariations.size > 0 && (
-                  <Box sx={{ flexShrink: 0 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', mb: 0.5, display: 'block', fontSize: '0.75rem' }}>
-                      Selected Options
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', maxWidth: 120 }}>
-                      {Array.from(selectedVariations.values()).map((option: any) => (
-                        option?.imageUrl && (
-                          <Card
-                            key={option.id}
-                            sx={{
-                              cursor: 'pointer',
-                              border: `2px solid ${theme.palette.primary.main}`,
-                              transition: 'all 0.2s ease',
-                              bgcolor: '#f9f9f9',
-                              flex: '0 0 auto',
-                              position: 'relative',
-                              '&:hover': {
-                                transform: 'scale(1.05)',
-                                boxShadow: theme.shadows[3]
-                              }
-                            }}
-                          >
-                            <Box
-                              component="img"
-                              src={getDisplayImageUrl(getImageUrl(option.imageUrl))}
-                              alt={option.name}
-                              sx={{
-                                width: 80,
-                                height: 80,
-                                objectFit: 'contain',
-                                padding: 0.5
-                              }}
-                              title={option.name}
-                            />
-                          </Card>
-                        )
-                      ))}
-                    </Box>
-                  </Box>
-                )}
-
-                {/* Product Images - Right Column (Compact) */}
-                {product.images && product.images.length > 0 && (
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', mb: 0.5, display: 'block', fontSize: '0.75rem' }}>
-                      Product Images
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                      {product.images.map((image: any, index: number) => {
-                        // Handle both string and object formats
-                        const rawImageUrl = typeof image === 'string' ? image : image.url
-                        const imageUrl = getImageUrl(rawImageUrl)
-                        return (
-                          <Card
-                            key={index}
-                            sx={{
-                              cursor: 'pointer',
-                              border: selectedImage === index && selectedVariations.size === 0 ? `2px solid ${theme.palette.primary.main}` : '1px solid #ddd',
-                              transition: 'all 0.2s ease',
-                              bgcolor: '#f9f9f9',
-                              flex: '0 0 auto',
-                              '&:hover': {
-                                transform: 'scale(1.05)',
-                                boxShadow: theme.shadows[3]
-                              }
-                            }}
-                            onClick={() => setSelectedImage(index)}
-                          >
-                            <Box
-                              component="img"
-                              src={getDisplayImageUrl(imageUrl)}
-                              alt={`${product.title || product.name} ${index + 1}`}
-                              onError={(e: any) => {
-                                const currentSrc = e.currentTarget.src
-                                if (!currentSrc.includes('placeholder')) {
-                                  handleImageError(currentSrc)
-                                }
-                              }}
-                              sx={{
-                                width: 80,
-                                height: 80,
-                                objectFit: 'contain',
-                                padding: 0.5
-                              }}
-                            />
-                          </Card>
-                        )
-                      })}
-                    </Box>
-                  </Box>
-                )}
-              </Box>
             </Box>
           </Grid>
 
@@ -547,9 +714,14 @@ export default function ProductDetail() {
               {/* Rating and Reviews Count */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Rating value={4} readOnly size="small" />
+                  <Rating 
+                    value={productRating?.averageRating || 5} 
+                    readOnly 
+                    size="small" 
+                    precision={0.5}
+                  />
                   <Typography variant="body2" sx={{ color: 'text.secondary', ml: 0.5 }}>
-                    (4 reviews)
+                    ({productRating?.totalReviews || 0} review{productRating?.totalReviews !== 1 ? 's' : ''})
                   </Typography>
                 </Box>
               </Box>
@@ -1084,6 +1256,7 @@ export default function ProductDetail() {
                 </IconButton>
                 <IconButton
                   size="large"
+                  onClick={handleShare}
                   sx={{
                     border: `2px solid ${theme.palette.primary.main}`,
                     color: theme.palette.primary.main
@@ -1203,7 +1376,7 @@ export default function ProductDetail() {
             }}
           >
             <Tab label="Description" />
-            <Tab label={`Reviews (${product.reviews?.length || 0})`} />
+            <Tab label={`Reviews (${productRating?.totalReviews || 0})`} />
           </Tabs>
 
           <TabPanel value={tabValue} index={0}>
@@ -1220,27 +1393,120 @@ export default function ProductDetail() {
 
           <TabPanel value={tabValue} index={1}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {product.reviews?.map((review: any) => (
-                <Card key={review.id} sx={{ p: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
-                      {review.author[0]}
-                    </Avatar>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                        {review.author}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {new Date(review.date).toLocaleDateString()}
-                      </Typography>
-                    </Box>
-                    <Rating value={review.rating} readOnly />
+              {/* Add/Edit Review Form */}
+              <Card sx={{ p: 3, bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+                  {userReview ? '✏️ Edit Your Review' : '✍️ Write a Review'}
+                </Typography>
+                
+                {userReview && (
+                  <Box sx={{ mb: 2, p: 1.5, bgcolor: alpha(theme.palette.info.main, 0.1), borderRadius: 1, border: `1px solid ${alpha(theme.palette.info.main, 0.3)}` }}>
+                    <Typography variant="body2" sx={{ color: 'info.main', fontWeight: 600 }}>
+                      You already reviewed this product. You can update your review below.
+                    </Typography>
                   </Box>
-                  <Typography variant="body1" sx={{ lineHeight: 1.7 }}>
-                    {review.comment}
+                )}
+                
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                    Rating *
+                  </Typography>
+                  <Rating
+                    value={reviewRating}
+                    onChange={(_, newValue) => setReviewRating(newValue || 0)}
+                    size="large"
+                    sx={{ fontSize: '2rem' }}
+                  />
+                </Box>
+
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                    Comment (Optional)
+                  </Typography>
+                  <Box
+                    component="textarea"
+                    value={reviewComment}
+                    onChange={(e: any) => setReviewComment(e.target.value)}
+                    placeholder="Share your experience with this product..."
+                    sx={{
+                      width: '100%',
+                      minHeight: 120,
+                      p: 1.5,
+                      border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                      borderRadius: 1,
+                      fontSize: '1rem',
+                      fontFamily: 'inherit',
+                      resize: 'vertical',
+                      '&:focus': {
+                        outline: 'none',
+                        borderColor: theme.palette.primary.main
+                      }
+                    }}
+                  />
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Button
+                    variant="contained"
+                    onClick={handleSubmitReview}
+                    disabled={submittingReview || reviewRating === 0 || loadingReviews}
+                    sx={{ minWidth: 120 }}
+                  >
+                    {loadingReviews ? 'Loading...' : submittingReview ? 'Submitting...' : (userReview ? 'Update Review' : 'Submit Review')}
+                  </Button>
+                  
+                  {userReview && (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={handleDeleteReview}
+                      disabled={submittingReview}
+                    >
+                      Delete Review
+                    </Button>
+                  )}
+                </Box>
+              </Card>
+
+              {/* Display Reviews */}
+              {reviews.length > 0 ? (
+                reviews.map((review: any) => (
+                  <Card key={review.id} sx={{ p: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                      <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
+                        {review.userName ? review.userName[0].toUpperCase() : 'U'}
+                      </Avatar>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                          {review.userName || 'Anonymous'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {new Date(review.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </Typography>
+                      </Box>
+                      <Rating value={review.rating} readOnly />
+                    </Box>
+                    {review.comment && (
+                      <Typography variant="body1" sx={{ lineHeight: 1.7 }}>
+                        {review.comment}
+                      </Typography>
+                    )}
+                  </Card>
+                ))
+              ) : (
+                <Card sx={{ p: 4, textAlign: 'center', bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+                  <Typography variant="h6" sx={{ color: 'text.secondary', mb: 1 }}>
+                    No reviews yet
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    Be the first to review this product!
                   </Typography>
                 </Card>
-              ))}
+              )}
             </Box>
           </TabPanel>
         </Box>
