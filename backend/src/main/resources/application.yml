@@ -18,10 +18,10 @@ spring:
     # Production (Render): Use JDBC_DATABASE_URL for PostgreSQL (includes username/password in URL)
     # Local: Use MySQL with individual environment variables
     url: ${JDBC_DATABASE_URL:jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:pos_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
-    # Note: For PostgreSQL (JDBC_DATABASE_URL), username and password are in the URL
-    # For MySQL (local), use separate username/password
+    # Username and password for local MySQL only
+    # When JDBC_DATABASE_URL is set (PostgreSQL), these are overridden by credentials in the URL
     username: ${DB_USER:root}
-    password: ${DB_PASSWORD:password}
+    password: ${DB_PASSWORD:root}
   
   jpa:
     hibernate:
