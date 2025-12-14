@@ -15,10 +15,11 @@ spring:
       static-locations: file:${UPLOAD_BASE_PATH:uploads}/,classpath:/static/
 
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:pos_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    # Production (Render): Use DATABASE_URL for PostgreSQL
+    # Local: Use MySQL with individual environment variables
+    url: ${DATABASE_URL:jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:pos_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USER:root}
     password: ${DB_PASSWORD:password}
-    driver-class-name: com.mysql.cj.jdbc.Driver
   
   jpa:
     hibernate:
@@ -26,7 +27,8 @@ spring:
     show-sql: ${SHOW_SQL:true}
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        # Production: PostgreSQL dialect, Local: MySQL dialect
+        dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.MySQLDialect}
         format_sql: true
   
   jackson:
