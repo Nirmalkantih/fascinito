@@ -5,6 +5,7 @@ import com.fascinito.pos.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -53,15 +54,13 @@ public class SecurityConfig {
                 // Allow public access to uploaded images (static resources)
                 .requestMatchers("/uploads/**").permitAll()
                 // Allow GET requests for products, categories, and banners (customer browsing)
-                .requestMatchers("GET", "/products/**", "/categories/**", "/banners/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/products/**", "/categories/**", "/banners/**").permitAll()
                 // Allow cart and wishlist for guest users (they manage via localStorage, authenticated users use DB)
-                .requestMatchers("GET", "/cart").permitAll()
-                .requestMatchers("GET", "/cart/**").permitAll()
-                .requestMatchers("POST", "/cart/items").permitAll()
-                .requestMatchers("POST", "/wishlist/**").permitAll()
-                .requestMatchers("DELETE", "/wishlist/**").permitAll()
-                .requestMatchers("GET", "/wishlist/check/**").permitAll()
-                .requestMatchers("GET", "/wishlist/count").permitAll()
+                .requestMatchers(HttpMethod.GET, "/cart", "/cart/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/cart/items").permitAll()
+                .requestMatchers(HttpMethod.POST, "/wishlist/**").permitAll()
+                .requestMatchers(HttpMethod.DELETE, "/wishlist/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/wishlist/check/**", "/wishlist/count").permitAll()
                 // Admin endpoints - requires ADMIN role
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 // All other requests require authentication
@@ -100,10 +99,22 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
+        
+        // Use environment variable for CORS origins, fallback to localhost for development
+        String allowedOrigins = System.getenv().getOrDefault("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173");
+        
+        // Check if wildcard is requested (for development/testing)
+        if (allowedOrigins.equals("*")) {
+            configuration.addAllowedOriginPattern("*");
+        } else {
+            // Parse comma-separated origins
+            configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        }
+        
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L); // Cache preflight for 1 hour
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
