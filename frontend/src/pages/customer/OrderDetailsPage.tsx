@@ -31,6 +31,8 @@ import { toast } from 'react-toastify'
 import api from '../../services/api'
 import OrderStepper from '../../components/OrderStepper'
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+
 interface OrderItem {
   id: number
   productName: string
@@ -95,9 +97,8 @@ export default function OrderDetailsPage() {
     }
     
     // The backend serves static files at /api/uploads but the path in DB is /uploads
-    // So we need http://localhost:8080/api/uploads/...
-    const baseUrl = 'http://localhost:8080/api'
-    const fullUrl = `${baseUrl}${imagePath}`
+    // Use environment variable for backend URL
+    const fullUrl = `${API_BASE_URL}${imagePath}`
     return fullUrl
   }
 
