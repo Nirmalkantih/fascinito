@@ -532,6 +532,7 @@ export default function VendorsEnhanced() {
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
                 variant="outlined"
+                sx={{ mt: 2 }}
               />
             </Grid>
             <Grid item xs={12} md={6}>

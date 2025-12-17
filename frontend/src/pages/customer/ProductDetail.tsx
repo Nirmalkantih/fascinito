@@ -102,13 +102,15 @@ export default function ProductDetail() {
 
         // Ensure trackInventory is explicitly set from API (don't override with default if API provides it)
         const finalProduct = {
-          images: [],
-          reviews: [],
-          specifications: [],
           ...productData,
+          images: productData.images || [],
+          reviews: productData.reviews || [],
+          specifications: productData.specifications || [],
           // Convert trackInventory to boolean properly (handles 1, true, "true", etc.)
           trackInventory: Boolean(productData.trackInventory)
         }
+        console.log('📦 Product Data:', finalProduct)
+        console.log('📋 Specifications:', finalProduct.specifications)
         setProduct(finalProduct)
 
         // Wishlist status will be loaded from WishlistContext via isInWishlist()
@@ -856,7 +858,7 @@ export default function ProductDetail() {
               )}
 
               {/* Description */}
-              {product.description && (
+              {/* {product.description && (
                 <Card sx={{ p: 2, mb: 3, bgcolor: alpha(theme.palette.info.main, 0.02) }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
                     About this Product
@@ -865,7 +867,7 @@ export default function ProductDetail() {
                     {product.description}
                   </Typography>
                 </Card>
-              )}
+              )} */}
 
               {/* Key Specifications Quick View */}
               <Card sx={{ p: 2, mb: 3, bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
@@ -1267,92 +1269,189 @@ export default function ProductDetail() {
               </Box>
 
               {/* Detailed Specifications */}
-              <Card sx={{ p: 3, bgcolor: alpha(theme.palette.primary.main, 0.02), border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}` }}>
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 700, mb: 2 }}>
+              <Card sx={{ 
+                p: 3, 
+                bgcolor: alpha(theme.palette.primary.main, 0.02), 
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                borderRadius: 2,
+                boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.08)}`
+              }}>
+                <Typography variant="h6" gutterBottom sx={{ 
+                  fontWeight: 700, 
+                  mb: 3,
+                  color: theme.palette.primary.main,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <Box component="span" sx={{ 
+                    width: 4, 
+                    height: 24, 
+                    bgcolor: theme.palette.primary.main, 
+                    borderRadius: 1 
+                  }} />
                   Detailed Specifications
                 </Typography>
                 {product.specifications && product.specifications.length > 0 ? (
-                  <Grid container spacing={2}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                     {product.specifications.map((spec: any, index: number) => (
-                      <Grid item xs={12} sm={6} key={index}>
-                        <Box sx={{ pb: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                            {spec.label}
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#000' }}>
-                            {spec.value}
+                      <Box 
+                        key={index}
+                        sx={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          py: 2,
+                          px: 2.5,
+                          borderRadius: 1.5,
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.primary.main, 0.04),
+                            transform: 'translateX(4px)',
+                          },
+                          ...(index !== product.specifications.length - 1 && {
+                            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                          })
+                        }}
+                      >
+                        <Box sx={{ 
+                          flex: '0 0 180px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5
+                        }}>
+                          <Box sx={{ 
+                            width: 8, 
+                            height: 8, 
+                            borderRadius: '50%', 
+                            bgcolor: theme.palette.primary.main 
+                          }} />
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: 'text.secondary', 
+                              fontWeight: 700,
+                              fontSize: '0.875rem',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px'
+                            }}
+                          >
+                            {spec.attributeName}
                           </Typography>
                         </Box>
-                      </Grid>
+                        <Typography 
+                          variant="body1" 
+                          sx={{ 
+                            fontWeight: 600, 
+                            color: theme.palette.text.primary,
+                            fontSize: '0.95rem',
+                            flex: 1
+                          }}
+                        >
+                          {spec.attributeValue}
+                        </Typography>
+                      </Box>
                     ))}
-                  </Grid>
+                  </Box>
                 ) : (
                   <Box>
                     <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
                       Standard specifications for this product:
                     </Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6}>
-                        <Box sx={{ pb: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                      <Box 
+                        sx={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          py: 2,
+                          px: 2.5,
+                          borderRadius: 1.5,
+                          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                        }}
+                      >
+                        <Box sx={{ 
+                          flex: '0 0 180px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5
+                        }}>
+                          <Box sx={{ 
+                            width: 8, 
+                            height: 8, 
+                            borderRadius: '50%', 
+                            bgcolor: theme.palette.primary.main 
+                          }} />
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: 'text.secondary', 
+                              fontWeight: 700,
+                              fontSize: '0.875rem',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px'
+                            }}
+                          >
                             Material
                           </Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            Premium Quality
-                          </Typography>
                         </Box>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Box sx={{ pb: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                        <Typography 
+                          variant="body1" 
+                          sx={{ 
+                            fontWeight: 600, 
+                            color: theme.palette.text.primary,
+                            fontSize: '0.95rem',
+                            flex: 1
+                          }}
+                        >
+                          Premium Quality
+                        </Typography>
+                      </Box>
+                      <Box 
+                        sx={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          py: 2,
+                          px: 2.5,
+                          borderRadius: 1.5
+                        }}
+                      >
+                        <Box sx={{ 
+                          flex: '0 0 180px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5
+                        }}>
+                          <Box sx={{ 
+                            width: 8, 
+                            height: 8, 
+                            borderRadius: '50%', 
+                            bgcolor: theme.palette.primary.main 
+                          }} />
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: 'text.secondary', 
+                              fontWeight: 700,
+                              fontSize: '0.875rem',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px'
+                            }}
+                          >
                             Warranty
                           </Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            1 Year
-                          </Typography>
                         </Box>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Box sx={{ pb: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                            Shipping
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            Free Delivery
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Box sx={{ pb: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                            Return Policy
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            30 Days
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Box sx={{ pb: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                            Availability
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            In Stock
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Box sx={{ pb: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                            Authenticity
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            100% Genuine
-                          </Typography>
-                        </Box>
-                      </Grid>
-                    </Grid>
+                        <Typography 
+                          variant="body1" 
+                          sx={{ 
+                            fontWeight: 600, 
+                            color: theme.palette.text.primary,
+                            fontSize: '0.95rem',
+                            flex: 1
+                          }}
+                        >
+                          1 Year
+                        </Typography>
+                      </Box>
+                    </Box>
                   </Box>
                 )}
               </Card>
@@ -1382,12 +1481,6 @@ export default function ProductDetail() {
           <TabPanel value={tabValue} index={0}>
             <Typography variant="body1" paragraph sx={{ lineHeight: 1.8 }}>
               {product.description}
-            </Typography>
-            <Typography variant="body1" sx={{ lineHeight: 1.8 }}>
-              These premium headphones deliver exceptional audio quality with deep bass and crystal-clear highs. 
-              The active noise cancellation technology blocks out unwanted ambient noise, allowing you to fully 
-              immerse yourself in your music. With a battery life of up to 30 hours, you can enjoy your favorite 
-              tracks all day long without worrying about recharging.
             </Typography>
           </TabPanel>
 

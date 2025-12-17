@@ -77,10 +77,17 @@ interface ProductVariation {
   options?: VariationOption[];  // Specific choices for this variation type
 }
 
+interface ProductSpecification {
+  attributeName: string;
+  attributeValue: string;
+  displayOrder: number;
+}
+
 interface ProductFormData {
   title: string;
   slug: string;
   description: string;
+  detailedDescription: string;
   sku: string;
   upc: string;
   categoryId: number | null;
@@ -100,6 +107,7 @@ interface ProductFormData {
   featured: boolean;
   imageUrls: string[];
   variations: ProductVariation[];
+  specifications: ProductSpecification[];
 }
 
 export default function ProductFormEnhanced() {
@@ -116,6 +124,7 @@ export default function ProductFormEnhanced() {
     title: '',
     slug: '',
     description: '',
+    detailedDescription: '',
     sku: '',
     upc: '',
     categoryId: null,
@@ -135,6 +144,7 @@ export default function ProductFormEnhanced() {
     featured: false,
     imageUrls: [],
     variations: [],
+    specifications: [],
   });
   const [newImageUrl, setNewImageUrl] = useState('');
 
@@ -226,6 +236,7 @@ export default function ProductFormEnhanced() {
         title: product.title || '',
         slug: product.slug || '',
         description: product.description || '',
+        detailedDescription: product.detailedDescription || '',
         sku: product.sku || '',
         upc: product.upc || '',
         categoryId: product.category?.id || product.categoryId || null,
@@ -245,6 +256,7 @@ export default function ProductFormEnhanced() {
         featured: product.featured || false,
         imageUrls: product.images?.map((img: any) => img.url) || [],
         variations: processedVariations,
+        specifications: product.specifications || [],
       });
     } catch (error: any) {
       showError(error.response?.data?.message || 'Failed to fetch product');
@@ -473,7 +485,34 @@ export default function ProductFormEnhanced() {
     }));
   };
 
+  const handleAddSpecification = () => {
+    setFormData(prev => ({
+      ...prev,
+      specifications: [
+        ...prev.specifications,
+        { attributeName: '', attributeValue: '', displayOrder: prev.specifications.length },
+      ],
+    }));
+  };
+
+  const handleRemoveSpecification = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      specifications: prev.specifications.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleSpecificationChange = (index: number, field: keyof ProductSpecification, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      specifications: prev.specifications.map((spec, i) =>
+        i === index ? { ...spec, [field]: value } : spec
+      ),
+    }));
+  };
+
   const handleSubmit = async () => {
+    console.log('📤 Submitting product with specifications:', formData.specifications) ;
     try {
       setLoading(true);
 
@@ -690,6 +729,95 @@ export default function ProductFormEnhanced() {
                     onChange={(e) => handleChange('description', e.target.value)}
                     placeholder="Detailed product description"
                   />
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          {/* Product Details & Specifications */}
+          <Card sx={{ 
+            mb: 3,
+            borderRadius: 3, 
+            boxShadow: theme.shadows[4],
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                <Avatar sx={{ 
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  width: 48,
+                  height: 48
+                }}>
+                  <Inventory sx={{ color: 'white' }} />
+                </Avatar>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  Product Details
+                </Typography>
+              </Box>
+              
+              <Grid container spacing={2.5}>
+                
+
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      Product Specifications
+                    </Typography>
+                    <Button
+                      startIcon={<Add />}
+                      variant="outlined"
+                      size="small"
+                      onClick={handleAddSpecification}
+                    >
+                      Add Specification
+                    </Button>
+                  </Box>
+
+                  {formData.specifications.length > 0 ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {formData.specifications.map((spec, index) => (
+                        <Card key={index} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+                          <CardContent sx={{ p: 2 }}>
+                            <Grid container spacing={2} alignItems="center">
+                              <Grid item xs={12} sm={5}>
+                                <TextField
+                                  fullWidth
+                                  size="small"
+                                  label="Attribute Name"
+                                  placeholder="e.g., Material, Warranty, Shipping"
+                                  value={spec.attributeName}
+                                  onChange={(e) => handleSpecificationChange(index, 'attributeName', e.target.value)}
+                                />
+                              </Grid>
+                              <Grid item xs={12} sm={6}>
+                                <TextField
+                                  fullWidth
+                                  size="small"
+                                  label="Value"
+                                  placeholder="e.g., Cotton, 1 Year, Free Delivery"
+                                  value={spec.attributeValue}
+                                  onChange={(e) => handleSpecificationChange(index, 'attributeValue', e.target.value)}
+                                />
+                              </Grid>
+                              <Grid item xs={12} sm={1}>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => handleRemoveSpecification(index)}
+                                >
+                                  <Delete />
+                                </IconButton>
+                              </Grid>
+                            </Grid>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </Box>
+                  ) : (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      No specifications added. Click "Add Specification" to add product attributes like Material, Warranty, Shipping, etc.
+                    </Alert>
+                  )}
                 </Grid>
               </Grid>
             </CardContent>

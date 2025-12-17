@@ -262,6 +262,7 @@ export default function Categories() {
               label="Category Name"
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
+              sx={{ mt: 1 }}
             />
             <TextField
               fullWidth

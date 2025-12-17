@@ -1,24 +1,25 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: pos-mysql
+  postgres:
+    image: postgres:15-alpine
+    container_name: pos-postgres
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: pos_db
-      MYSQL_USER: pos_user
-      MYSQL_PASSWORD: pos_password
+      POSTGRES_DB: fascinito_pos
+      POSTGRES_USER: fascinito_user
+      POSTGRES_PASSWORD: fascinito_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     ports:
-      - "3307:3306"
+      - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/postgres-init.sql:/docker-entrypoint-initdb.d/01-init.sql
     networks:
       - pos-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppassword"]
+      test: ["CMD-SHELL", "pg_isready -U fascinito_user -d fascinito_pos"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   backend:
     build:
@@ -27,23 +28,25 @@ services:
     container_name: pos-backend
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_NAME: pos_db
-      DB_USER: root
-      DB_PASSWORD: password
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: fascinito_pos
+      DB_USER: fascinito_user
+      DB_PASSWORD: fascinito_password
       JWT_SECRET: yourSecretKeyForJWTTokenGenerationMustBeLongEnoughForHS256Algorithm
       CORS_ORIGINS: http://localhost:3000,http://localhost:5173
       UPLOAD_BASE_PATH: /app/uploads
       RAZORPAY_KEY_ID: rzp_test_RoFnqXkY7esC5c
       RAZORPAY_KEY_SECRET: Qm3g6rIDa3jolODW8SQ2QhmW
       RAZORPAY_CURRENCY: INR
+      SHOW_SQL: true
+      LOG_LEVEL: DEBUG
     ports:
       - "8080:8080"
     volumes:
       - uploads_data:/app/uploads
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     networks:
       - pos-network
@@ -52,7 +55,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
+    restart: unless-stopped
 
   frontend:
     build:
@@ -68,24 +72,34 @@ services:
     environment:
       VITE_API_URL: http://localhost:8080/api
       VITE_RAZORPAY_KEY_ID: rzp_test_1234567890abcd
-
-  adminer:
-    image: adminer
-    container_name: pos-adminer
     restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pos-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
     ports:
-      - "8081:8080"
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
     networks:
       - pos-network
     depends_on:
-      - mysql
+      - postgres
 
 networks:
   pos-network:
     driver: bridge
 
 volumes:
-  mysql_data:
+  postgres_data:
     driver: local
   uploads_data:
+    driver: local
+  pgadmin_data:
     driver: local

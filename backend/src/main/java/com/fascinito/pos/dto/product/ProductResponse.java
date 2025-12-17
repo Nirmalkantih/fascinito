@@ -17,6 +17,7 @@ public class ProductResponse {
     private String title;
     private String slug;
     private String description;
+    private String detailedDescription;
     private String sku;
     private String upc;
     
@@ -50,6 +51,7 @@ public class ProductResponse {
     private List<ProductImageResponse> images;
     private List<ProductVariationResponse> variations;
     private List<VariantCombinationResponse> variantCombinations;
+    private List<ProductSpecificationResponse> specifications;
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

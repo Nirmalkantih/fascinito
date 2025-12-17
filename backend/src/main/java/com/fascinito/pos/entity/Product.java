@@ -34,6 +34,9 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(columnDefinition = "TEXT")
+    private String detailedDescription;
+
     @Column(unique = true, length = 100)
     private String sku;
 
@@ -97,6 +100,9 @@ public class Product {
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductVariantCombination> variantCombinations = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductSpecification> specifications = new ArrayList<>();
 
     @CreatedDate
     @Column(nullable = false, updatable = false)

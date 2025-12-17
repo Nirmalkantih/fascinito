@@ -111,6 +111,10 @@ public class ProductService {
                 }
             });
         }
+        // Initialize specifications to avoid lazy loading issues
+        if (product.getSpecifications() != null) {
+            product.getSpecifications().size();
+        }
         return mapToResponse(product);
     }
 
@@ -184,6 +188,7 @@ public class ProductService {
         product.setTitle(request.getTitle());
         product.setSlug(request.getSlug());
         product.setDescription(request.getDescription());
+        product.setDetailedDescription(request.getDetailedDescription());
         product.setSku(request.getSku());
         product.setUpc(request.getUpc());
         product.setRegularPrice(request.getRegularPrice());
@@ -348,6 +353,23 @@ public class ProductService {
             log.info("Deleted old variant combinations for product {}", product.getId());
         }
         generateVariantCombinations(product);
+
+        // Handle specifications
+        if (request.getSpecifications() != null) {
+            // Remove existing specifications
+            if (product.getSpecifications() != null && !product.getSpecifications().isEmpty()) {
+                product.getSpecifications().clear();
+            }
+            for (ProductSpecificationRequest specReq : request.getSpecifications()) {
+                ProductSpecification spec = ProductSpecification.builder()
+                        .product(product)
+                        .attributeName(specReq.getAttributeName())
+                        .attributeValue(specReq.getAttributeValue())
+                        .displayOrder(specReq.getDisplayOrder() != null ? specReq.getDisplayOrder() : 0)
+                        .build();
+                product.getSpecifications().add(spec);
+            }
+        }
     }
 
     /**
@@ -468,6 +490,7 @@ public class ProductService {
         response.setTitle(product.getTitle());
         response.setSlug(product.getSlug());
         response.setDescription(product.getDescription());
+        response.setDetailedDescription(product.getDetailedDescription());
         response.setSku(product.getSku());
         response.setUpc(product.getUpc());
         response.setRegularPrice(product.getRegularPrice());
@@ -612,6 +635,19 @@ public class ProductService {
                     .collect(Collectors.toList()));
         } else {
             log.info("No variant combinations found for product {}", product.getId());
+        }
+
+        // Map specifications
+        if (product.getSpecifications() != null && !product.getSpecifications().isEmpty()) {
+            response.setSpecifications(product.getSpecifications().stream()
+                    .sorted((a, b) -> Integer.compare(a.getDisplayOrder(), b.getDisplayOrder()))
+                    .map(spec -> ProductSpecificationResponse.builder()
+                            .id(spec.getId())
+                            .attributeName(spec.getAttributeName())
+                            .attributeValue(spec.getAttributeValue())
+                            .displayOrder(spec.getDisplayOrder())
+                            .build())
+                    .collect(Collectors.toList()));
         }
 
         return response;

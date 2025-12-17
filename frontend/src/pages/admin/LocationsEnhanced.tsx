@@ -479,6 +479,7 @@ export default function LocationsEnhanced() {
                 label="Location Name"
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
+                sx={{ mt: 2 }}
               />
             </Grid>
             <Grid item xs={12}>

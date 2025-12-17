@@ -46,7 +46,8 @@ class AuthService {
    */
   async login(data: LoginRequest): Promise<AuthResponse> {
     const response = await api.post<any, any>('/auth/login', data)
-    return response.data
+    // Response is wrapped: { success, message, data: AuthResponse, timestamp }
+    return (response as any).data
   }
 
   /**
@@ -54,7 +55,8 @@ class AuthService {
    */
   async signup(data: SignupRequest): Promise<AuthResponse> {
     const response = await api.post<any, any>('/auth/signup', data)
-    return response.data
+    // Response is wrapped: { success, message, data: AuthResponse, timestamp }
+    return (response as any).data
   }
 
   /**
@@ -99,7 +101,8 @@ class AuthService {
   async refreshToken(): Promise<string> {
     try {
       const response = await api.post<any, any>('/auth/refresh')
-      const newAccessToken = response.data.accessToken
+      // Response is wrapped: { success, message, data: AuthResponse, timestamp }
+      const newAccessToken = (response as any).data.accessToken
 
       this.setAccessToken(newAccessToken)
       return newAccessToken

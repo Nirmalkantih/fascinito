@@ -48,7 +48,7 @@ api.interceptors.request.use(
 // ---- RESPONSE INTERCEPTOR ----
 api.interceptors.response.use(
   (response) => {
-    // Return the data directly for successful responses
+    // Return the full response.data as-is to let callers handle the wrapper
     return response.data
   },
   async (error: AxiosError<any>) => {
@@ -84,8 +84,8 @@ api.interceptors.response.use(
           { withCredentials: true }
         )
 
-        // Extract new access token
-        const newAccessToken = response.data.data.accessToken
+        // Extract new access token (response.data is wrapped: { success, data, ... })
+        const newAccessToken = response.data?.data?.accessToken || response.data?.accessToken
         
         // Store new access token
         localStorage.setItem('accessToken', newAccessToken)

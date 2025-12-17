@@ -24,6 +24,9 @@ public class ProductRequest {
     @Size(max = 5000, message = "Description must not exceed 5000 characters")
     private String description;
 
+    @Size(max = 10000, message = "Detailed description must not exceed 10000 characters")
+    private String detailedDescription;
+
     @Size(max = 100, message = "SKU must not exceed 100 characters")
     private String sku;
 
@@ -71,4 +74,6 @@ public class ProductRequest {
     private List<String> imageUrls;
 
     private List<ProductVariationRequest> variations;
+
+    private List<ProductSpecificationRequest> specifications;
 }

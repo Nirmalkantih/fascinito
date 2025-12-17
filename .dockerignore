@@ -1,0 +1,75 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node modules
+node_modules
+npm-debug.log
+yarn-error.log
+.npm
+
+# Build outputs
+dist
+build
+target
+*.jar
+*.war
+*.ear
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+.env.local
+.env.*.local
+*.sublime-workspace
+
+# Environment files
+.env
+.env.example
+.env.dev
+.env.prod
+
+# Documentation
+README.md
+docs
+CHANGELOG.md
+
+# Docker files themselves
+Dockerfile
+docker-compose.yml
+docker-compose.dev.yml
+.dockerignore
+
+# OS files
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Node specific
+package-lock.json
+yarn.lock
+
+# Maven specific
+.m2
+
+# Database files
+*.sql
+database/
+
+# Uploads directory
+uploads/
+
+# Test files and coverage
+coverage/
+.nyc_output
+test-results/

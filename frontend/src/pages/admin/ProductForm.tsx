@@ -39,10 +39,17 @@ interface ProductVariation {
   options?: string;
 }
 
+interface ProductSpecification {
+  attributeName: string;
+  attributeValue: string;
+  displayOrder: number;
+}
+
 interface ProductFormData {
   title: string;
   slug: string;
   description: string;
+  detailedDescription: string;
   sku: string;
   upc: string;
   categoryId: number | null;
@@ -62,6 +69,7 @@ interface ProductFormData {
   featured: boolean;
   imageUrls: string[];
   variations: ProductVariation[];
+  specifications: ProductSpecification[];
 }
 
 export default function AdminProductForm() {
@@ -76,6 +84,7 @@ export default function AdminProductForm() {
     title: '',
     slug: '',
     description: '',
+    detailedDescription: '',
     sku: '',
     upc: '',
     categoryId: null,
@@ -95,6 +104,7 @@ export default function AdminProductForm() {
     featured: false,
     imageUrls: [],
     variations: [],
+    specifications: [],
   });
   const [newImageUrl, setNewImageUrl] = useState('');
   const [uploadingVariationImage, setUploadingVariationImage] = useState<{ [key: number]: boolean }>({});
@@ -132,6 +142,7 @@ export default function AdminProductForm() {
         title: product.title || '',
         slug: product.slug || '',
         description: product.description || '',
+        detailedDescription: product.detailedDescription || '',
         sku: product.sku || '',
         upc: product.upc || '',
         categoryId: product.categoryId || null,
@@ -151,6 +162,7 @@ export default function AdminProductForm() {
         featured: product.featured || false,
         imageUrls: product.images?.map((img: any) => img.url) || [],
         variations: product.variations || [],
+        specifications: product.specifications || [],
       });
     } catch (error: any) {
       showError(error.response?.data?.message || 'Failed to fetch product');
@@ -203,6 +215,32 @@ export default function AdminProductForm() {
     setFormData(prev => ({
       ...prev,
       variations: prev.variations.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleAddSpecification = () => {
+    setFormData(prev => ({
+      ...prev,
+      specifications: [
+        ...prev.specifications,
+        { attributeName: '', attributeValue: '', displayOrder: prev.specifications.length },
+      ],
+    }));
+  };
+
+  const handleRemoveSpecification = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      specifications: prev.specifications.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleSpecificationChange = (index: number, field: keyof ProductSpecification, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      specifications: prev.specifications.map((spec, i) =>
+        i === index ? { ...spec, [field]: value } : spec
+      ),
     }));
   };
 
@@ -259,6 +297,7 @@ export default function AdminProductForm() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log('📤 Submitting product with specifications:', formData.specifications);
     e.preventDefault();
     try {
       setLoading(true);
@@ -272,6 +311,8 @@ export default function AdminProductForm() {
           return;
         }
       }
+
+      console.log('📤 Submitting product with specifications:', formData.specifications);
 
       if (id) {
         await api.put(`/products/${id}`, formData);
@@ -351,6 +392,94 @@ export default function AdminProductForm() {
                     value={formData.upc}
                     onChange={(e) => handleChange('upc', e.target.value)}
                   />
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+
+          {/* Product Details */}
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Product Details
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={6}
+                    label="Detailed Description"
+                    placeholder="Enter comprehensive product details, features, and benefits..."
+                    value={formData.detailedDescription}
+                    onChange={(e) => handleChange('detailedDescription', e.target.value)}
+                    helperText="Provide detailed information about the product that will help customers make informed decisions"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      Product Specifications
+                    </Typography>
+                    <Button
+                      startIcon={<Add />}
+                      variant="outlined"
+                      size="small"
+                      onClick={handleAddSpecification}
+                    >
+                      Add Specification
+                    </Button>
+                  </Box>
+                  {formData.specifications.length > 0 ? (
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell width="30%">Attribute Name</TableCell>
+                            <TableCell width="60%">Value</TableCell>
+                            <TableCell width="10%" align="center">Actions</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {formData.specifications.map((spec, index) => (
+                            <TableRow key={index}>
+                              <TableCell>
+                                <TextField
+                                  fullWidth
+                                  size="small"
+                                  placeholder="e.g., Material, Warranty, Shipping"
+                                  value={spec.attributeName}
+                                  onChange={(e) => handleSpecificationChange(index, 'attributeName', e.target.value)}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <TextField
+                                  fullWidth
+                                  size="small"
+                                  placeholder="e.g., Cotton, 1 Year, Free Delivery"
+                                  value={spec.attributeValue}
+                                  onChange={(e) => handleSpecificationChange(index, 'attributeValue', e.target.value)}
+                                />
+                              </TableCell>
+                              <TableCell align="center">
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => handleRemoveSpecification(index)}
+                                >
+                                  <Delete />
+                                </IconButton>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', py: 2 }}>
+                      No specifications added. Click "Add Specification" to add product attributes like Material, Warranty, Shipping, etc.
+                    </Typography>
+                  )}
                 </Grid>
               </Grid>
             </Paper>

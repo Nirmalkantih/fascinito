@@ -15,13 +15,10 @@ spring:
       static-locations: file:${UPLOAD_BASE_PATH:uploads}/,classpath:/static/
 
   datasource:
-    # Production (Render): Use JDBC_DATABASE_URL for PostgreSQL (includes username/password in URL)
-    # Local: Use MySQL with individual environment variables
-    url: ${JDBC_DATABASE_URL:jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:pos_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
-    # Username and password for local MySQL only
-    # When JDBC_DATABASE_URL is set (PostgreSQL), these are overridden by credentials in the URL
-    username: ${DB_USER:root}
-    password: ${DB_PASSWORD:root}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:pos_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
   
   jpa:
     hibernate:
@@ -29,8 +26,7 @@ spring:
     show-sql: ${SHOW_SQL:true}
     properties:
       hibernate:
-        # Production: PostgreSQL dialect, Local: MySQL dialect
-        dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.MySQLDialect}
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
   
   jackson:
