@@ -21,4 +21,6 @@ public class StaffResponse {
     private Boolean emailVerified;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    // Note: We don't return actual password for security reasons
+    // Frontend should leave password field empty when editing (only fill if changing password)
 }

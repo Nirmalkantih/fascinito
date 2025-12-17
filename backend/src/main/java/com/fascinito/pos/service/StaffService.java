@@ -85,8 +85,19 @@ public class StaffService {
     public StaffResponse createStaff(StaffRequest request) {
         log.debug("Creating new staff: {}", request.getEmail());
 
+        // Password is required for creation
+        if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
+            throw new BadRequestException("Password is required for creating new staff");
+        }
+
         if (userRepository.existsByEmailAndDeletedFalse(request.getEmail())) {
             throw new BadRequestException("Email already exists: " + request.getEmail());
+        }
+
+        if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
+            if (userRepository.existsByPhoneAndDeletedFalse(request.getPhone())) {
+                throw new BadRequestException("Phone number already exists: " + request.getPhone());
+            }
         }
 
         User user = new User();
@@ -139,6 +150,13 @@ public class StaffService {
         if (!user.getEmail().equals(request.getEmail()) && 
             userRepository.existsByEmailAndDeletedFalse(request.getEmail())) {
             throw new BadRequestException("Email already exists: " + request.getEmail());
+        }
+
+        // Check if phone is being changed and if it already exists
+        if (request.getPhone() != null && !request.getPhone().trim().isEmpty() &&
+            !request.getPhone().equals(user.getPhone()) &&
+            userRepository.existsByPhoneAndDeletedFalse(request.getPhone())) {
+            throw new BadRequestException("Phone number already exists: " + request.getPhone());
         }
 
         user.setEmail(request.getEmail());

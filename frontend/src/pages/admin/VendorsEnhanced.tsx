@@ -204,7 +204,7 @@ export default function VendorsEnhanced() {
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={4}>
             <Card sx={{ 
-              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
               position: 'relative',
               overflow: 'hidden',
@@ -244,7 +244,7 @@ export default function VendorsEnhanced() {
 
           <Grid item xs={12} sm={4}>
             <Card sx={{ 
-              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
               color: 'white',
               position: 'relative',
               overflow: 'hidden',
@@ -284,7 +284,7 @@ export default function VendorsEnhanced() {
 
           <Grid item xs={12} sm={4}>
             <Card sx={{ 
-              background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
               color: 'white',
               position: 'relative',
               overflow: 'hidden',

@@ -577,23 +577,17 @@ export default function Banners() {
                   Background Color
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <Box
-                    sx={{
-                      width: 50,
-                      height: 50,
-                      borderRadius: 1,
-                      bgcolor: formData.backgroundColor,
-                      border: `2px solid ${theme.palette.divider}`,
+                  <input
+                    type="color"
+                    value={formData.backgroundColor}
+                    onChange={(e) => handleFormChange('backgroundColor', e.target.value)}
+                    style={{
+                      width: '50px',
+                      height: '50px',
+                      borderRadius: '8px',
+                      border: 'none',
                       cursor: 'pointer',
-                    }}
-                    onClick={() => {
-                      const input = document.createElement('input')
-                      input.type = 'color'
-                      input.value = formData.backgroundColor
-                      input.onchange = (e: any) => {
-                        handleFormChange('backgroundColor', e.target.value)
-                      }
-                      input.click()
+                      padding: '2px',
                     }}
                   />
                   <TextField
@@ -601,6 +595,7 @@ export default function Banners() {
                     value={formData.backgroundColor}
                     onChange={(e) => handleFormChange('backgroundColor', e.target.value)}
                     sx={{ flex: 1 }}
+                    placeholder="#667eea"
                   />
                 </Box>
               </Box>
@@ -610,23 +605,17 @@ export default function Banners() {
                   Text Color
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <Box
-                    sx={{
-                      width: 50,
-                      height: 50,
-                      borderRadius: 1,
-                      bgcolor: formData.textColor,
-                      border: `2px solid ${theme.palette.divider}`,
+                  <input
+                    type="color"
+                    value={formData.textColor}
+                    onChange={(e) => handleFormChange('textColor', e.target.value)}
+                    style={{
+                      width: '50px',
+                      height: '50px',
+                      borderRadius: '8px',
+                      border: 'none',
                       cursor: 'pointer',
-                    }}
-                    onClick={() => {
-                      const input = document.createElement('input')
-                      input.type = 'color'
-                      input.value = formData.textColor
-                      input.onchange = (e: any) => {
-                        handleFormChange('textColor', e.target.value)
-                      }
-                      input.click()
+                      padding: '2px',
                     }}
                   />
                   <TextField
@@ -634,6 +623,7 @@ export default function Banners() {
                     value={formData.textColor}
                     onChange={(e) => handleFormChange('textColor', e.target.value)}
                     sx={{ flex: 1 }}
+                    placeholder="#ffffff"
                   />
                 </Box>
               </Box>

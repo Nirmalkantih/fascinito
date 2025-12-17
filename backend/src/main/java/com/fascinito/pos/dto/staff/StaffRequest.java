@@ -18,7 +18,7 @@ public class StaffRequest {
     @Email(message = "Email should be valid")
     private String email;
     
-    @NotBlank(message = "Password is required")
+    // Password is optional for updates, required only for creation
     @Size(min = 6, message = "Password must be at least 6 characters")
     private String password;
     

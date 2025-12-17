@@ -155,7 +155,7 @@ const Staff: React.FC = () => {
       setEditingStaff(staff);
       setFormData({
         email: staff.email,
-        password: '', // Don't populate password for edit
+        password: '******', // Show placeholder to indicate password exists
         firstName: staff.firstName,
         lastName: staff.lastName,
         phone: staff.phone || '',
@@ -202,9 +202,16 @@ const Staff: React.FC = () => {
       errors.email = 'Invalid email format';
     }
 
+    // For new staff, password is required
     if (!editingStaff && !formData.password) {
       errors.password = 'Password is required';
-    } else if (!editingStaff && formData.password.length < 6) {
+    } 
+    // For editing, only validate if password was changed (not the placeholder)
+    else if (editingStaff && formData.password && formData.password !== '••••••••' && formData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    // For new staff, validate length
+    else if (!editingStaff && formData.password.length < 6) {
       errors.password = 'Password must be at least 6 characters';
     }
 
@@ -227,16 +234,28 @@ const Staff: React.FC = () => {
 
     try {
       setLoading(true);
-      const payload = editingStaff && !formData.password
+      
+      // Check if password is the placeholder or empty (don't send it)
+      const isPasswordUnchanged = !formData.password || formData.password === '••••••••';
+      
+      const payload = editingStaff && isPasswordUnchanged
         ? {
             email: formData.email,
             firstName: formData.firstName,
             lastName: formData.lastName,
             phone: formData.phone || null,
-            role: formData.role,
+            roles: [formData.role], // Backend expects roles as array
             active: formData.active,
           }
-        : formData;
+        : {
+            email: formData.email,
+            password: formData.password,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            phone: formData.phone || null,
+            roles: [formData.role], // Backend expects roles as array
+            active: formData.active,
+          };
 
       if (editingStaff) {
         await api.put(`/staff/${editingStaff.id}`, payload);
@@ -612,8 +631,9 @@ const Staff: React.FC = () => {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   error={!!formErrors.password}
-                  helperText={formErrors.password || (editingStaff ? 'Leave blank to keep current password' : '')}
+                  helperText={formErrors.password || (editingStaff ? 'Change password or leave as is to keep current' : 'Minimum 6 characters')}
                   required={!editingStaff}
+                  placeholder={editingStaff ? 'Enter new password to change' : 'Enter password'}
                 />
               </Grid>
               <Grid item xs={12}>
