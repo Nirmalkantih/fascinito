@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS roles (
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
-    email VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(100) UNIQUE,
     password VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
@@ -351,8 +351,14 @@ CREATE TABLE IF NOT EXISTS payments (
     order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     payment_method VARCHAR(50) NOT NULL,
     transaction_id VARCHAR(255),
+    razorpay_order_id VARCHAR(100),
+    razorpay_payment_id VARCHAR(100),
+    razorpay_signature VARCHAR(255),
     amount NUMERIC(10, 2) NOT NULL,
+    currency VARCHAR(3) DEFAULT 'USD',
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    payment_details TEXT,
+    failure_reason TEXT,
     response_data TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -361,6 +367,8 @@ CREATE TABLE IF NOT EXISTS payments (
 -- Create indexes for payments table
 CREATE INDEX idx_payments_order_id ON payments(order_id);
 CREATE INDEX idx_payments_transaction_id ON payments(transaction_id);
+CREATE INDEX idx_payments_razorpay_order_id ON payments(razorpay_order_id);
+CREATE INDEX idx_payments_razorpay_payment_id ON payments(razorpay_payment_id);
 
 -- OTP Verification table
 CREATE TABLE IF NOT EXISTS otp_verification (
@@ -398,12 +406,113 @@ CREATE INDEX idx_banners_display_order ON banners(display_order);
 -- Insert default roles
 INSERT INTO roles (name, description) VALUES
     ('ROLE_ADMIN', 'Administrator role with full access'),
+    ('ROLE_STAFF', 'Staff role for store operations'),
     ('ROLE_VENDOR', 'Vendor role for managing their products'),
     ('ROLE_CUSTOMER', 'Customer role for browsing and purchasing')
 ON CONFLICT DO NOTHING;
+
+-- Cancellation reasons table (predefined options)
+CREATE TABLE IF NOT EXISTS cancellation_reasons (
+    id BIGSERIAL PRIMARY KEY,
+    reason_key VARCHAR(50) NOT NULL UNIQUE,
+    reason_text VARCHAR(255) NOT NULL,
+    display_order INT NOT NULL DEFAULT 0,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for cancellation_reasons table
+CREATE INDEX idx_cancellation_reasons_active ON cancellation_reasons(active);
+
+-- Order cancellations table
+CREATE TABLE IF NOT EXISTS order_cancellations (
+    id BIGSERIAL PRIMARY KEY,
+    order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    cancellation_reason_id BIGINT REFERENCES cancellation_reasons(id) ON DELETE SET NULL,
+    custom_message TEXT,
+    cancelled_by BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    cancelled_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for order_cancellations table
+CREATE INDEX idx_order_cancellations_order_id ON order_cancellations(order_id);
+CREATE INDEX idx_order_cancellations_cancelled_by ON order_cancellations(cancelled_by);
+CREATE INDEX idx_order_cancellations_created_at ON order_cancellations(created_at);
+
+-- Order refunds table
+CREATE TABLE IF NOT EXISTS order_refunds (
+    id BIGSERIAL PRIMARY KEY,
+    order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    refund_type VARCHAR(20) NOT NULL,  -- FULL or PARTIAL
+    refund_amount NUMERIC(10, 2) NOT NULL,
+    razorpay_refund_id VARCHAR(100),
+    refund_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',  -- PENDING, PROCESSING, SUCCESS, FAILED, PENDING_SETTLEMENT
+    initiated_by BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    failure_reason TEXT,
+    processed_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT order_refunds_refund_status_check CHECK (refund_status IN ('PENDING', 'PROCESSING', 'SUCCESS', 'FAILED', 'PENDING_SETTLEMENT')),
+    CONSTRAINT order_refunds_refund_type_check CHECK (refund_type IN ('FULL', 'PARTIAL'))
+);
+
+-- Create indexes for order_refunds table
+CREATE INDEX idx_order_refunds_order_id ON order_refunds(order_id);
+CREATE INDEX idx_order_refunds_status ON order_refunds(refund_status);
+CREATE INDEX idx_order_refunds_razorpay_refund_id ON order_refunds(razorpay_refund_id);
+CREATE INDEX idx_order_refunds_initiated_by ON order_refunds(initiated_by);
+CREATE INDEX idx_order_refunds_created_at ON order_refunds(created_at);
+
+-- Add new columns to orders table for tracking cancellation and refund
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_reason VARCHAR(255);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_message TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_status VARCHAR(20) DEFAULT 'NOT_REQUIRED';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_amount NUMERIC(10, 2);
+
+-- Create indexes for new order columns
+CREATE INDEX IF NOT EXISTS idx_orders_refund_status ON orders(refund_status);
+CREATE INDEX IF NOT EXISTS idx_orders_cancelled_at ON orders(cancelled_at);
+
+-- Insert default cancellation reasons
+INSERT INTO cancellation_reasons (reason_key, reason_text, display_order) VALUES
+    ('ORDERED_BY_MISTAKE', 'Ordered by mistake', 1),
+    ('BETTER_PRICE', 'Found a better price elsewhere', 2),
+    ('DELIVERY_SLOW', 'Delivery is taking too long', 3),
+    ('NO_LONGER_NEEDED', 'Product no longer needed', 4),
+    ('PAYMENT_ISSUE', 'Payment issue', 5),
+    ('OTHER', 'Other (please specify)', 6)
+ON CONFLICT (reason_key) DO NOTHING;
+
+-- Add settlement hold support for refunds
+ALTER TABLE order_refunds ADD COLUMN IF NOT EXISTS settlement_expected_date TIMESTAMP;
+
+-- Create table for tracking pending refund retries
+CREATE TABLE IF NOT EXISTS refund_retry_schedule (
+    id BIGSERIAL PRIMARY KEY,
+    refund_id BIGINT NOT NULL REFERENCES order_refunds(id) ON DELETE CASCADE,
+    retry_at TIMESTAMP NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDING',
+    retry_count INTEGER DEFAULT 0,
+    last_error TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for efficient querying
+CREATE INDEX IF NOT EXISTS idx_refund_retry_schedule_status_retry_at
+    ON refund_retry_schedule(status, retry_at);
+
+CREATE INDEX IF NOT EXISTS idx_refund_retry_schedule_refund_id
+    ON refund_retry_schedule(refund_id);
 
 -- Grant permissions if needed
 ALTER TABLE IF EXISTS users OWNER TO current_user;
 ALTER TABLE IF EXISTS roles OWNER TO current_user;
 ALTER TABLE IF EXISTS products OWNER TO current_user;
 ALTER TABLE IF EXISTS orders OWNER TO current_user;
+ALTER TABLE IF EXISTS cancellation_reasons OWNER TO current_user;
+ALTER TABLE IF EXISTS order_cancellations OWNER TO current_user;
+ALTER TABLE IF EXISTS order_refunds OWNER TO current_user;
+ALTER TABLE IF EXISTS refund_retry_schedule OWNER TO current_user;
