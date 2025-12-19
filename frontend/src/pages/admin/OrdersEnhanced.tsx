@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -48,6 +49,7 @@ interface Order {
 
 export default function OrdersEnhanced() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { isAdmin } = usePermissions();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -320,7 +322,11 @@ export default function OrdersEnhanced() {
                   <TableCell>{new Date(order.createdAtTimestamp).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <Tooltip title="View Details">
-                      <IconButton size="small" color="primary">
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => navigate(`/admin/orders/${order.id}`)}
+                      >
                         <Visibility fontSize="small" />
                       </IconButton>
                     </Tooltip>

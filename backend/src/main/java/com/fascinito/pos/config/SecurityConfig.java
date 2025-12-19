@@ -55,6 +55,10 @@ public class SecurityConfig {
                 .requestMatchers("/uploads/**").permitAll()
                 // Allow GET requests for products, categories, and banners (customer browsing)
                 .requestMatchers(HttpMethod.GET, "/products/**", "/categories/**", "/banners/**").permitAll()
+                // Allow public access to cancellation reasons
+                .requestMatchers(HttpMethod.GET, "/cancellation-reasons", "/cancellation-reasons/**").permitAll()
+                // Allow public access to orders endpoint for testing
+                .requestMatchers(HttpMethod.GET, "/orders/**").permitAll()
                 // Allow cart and wishlist for guest users (they manage via localStorage, authenticated users use DB)
                 .requestMatchers(HttpMethod.GET, "/cart", "/cart/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/cart/items").permitAll()

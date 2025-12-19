@@ -71,6 +71,29 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderStatusHistory> statusHistory = new ArrayList<>();
 
+    // Cancellation fields
+    @Column(length = 255)
+    private String cancellationReason;
+
+    @Column(columnDefinition = "TEXT")
+    private String cancellationMessage;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    // Refund tracking fields
+    @Column(length = 20)
+    private String refundStatus = "NOT_REQUIRED";
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal refundAmount;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderCancellation> cancellations = new ArrayList<>();
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderRefund> refunds = new ArrayList<>();
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

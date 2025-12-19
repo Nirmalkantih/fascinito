@@ -28,6 +28,7 @@ import AdminBanners from './pages/admin/BannersEnhanced'
 import AdminVendors from './pages/admin/VendorsEnhanced'
 import AdminLocations from './pages/admin/LocationsEnhanced'
 import AdminOrders from './pages/admin/OrdersEnhanced'
+import AdminOrderDetails from './pages/admin/OrderDetailsPage'
 import AdminCustomers from './pages/admin/CustomersEnhanced'
 import AdminStaff from './pages/admin/Staff'
 import AdminReports from './pages/admin/ReportsEnhanced'
@@ -140,6 +141,7 @@ function App() {
         <Route path="vendors" element={<ProtectedRoute requiredPermission="view_vendors"><AdminVendors /></ProtectedRoute>} />
         <Route path="locations" element={<ProtectedRoute requiredPermission="view_locations"><AdminLocations /></ProtectedRoute>} />
         <Route path="orders" element={<ProtectedRoute requiredPermission="view_orders"><AdminOrders /></ProtectedRoute>} />
+        <Route path="orders/:orderId" element={<ProtectedRoute requiredPermission="view_orders"><AdminOrderDetails /></ProtectedRoute>} />
         <Route path="customers" element={<ProtectedRoute requiredPermission="view_customers"><AdminCustomers /></ProtectedRoute>} />
         <Route path="staff" element={<ProtectedRoute requiredPermission="view_staff"><AdminStaff /></ProtectedRoute>} />
         <Route path="reports" element={<ProtectedRoute requiredPermission="view_reports"><AdminReports /></ProtectedRoute>} />

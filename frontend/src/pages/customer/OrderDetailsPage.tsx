@@ -25,11 +25,15 @@ import {
   LocalShipping,
   Receipt,
   Payment as PaymentIcon,
-  Person
+  Person,
+  Close as CloseIcon,
+  LocalAtm
 } from '@mui/icons-material'
 import { toast } from 'react-toastify'
 import api from '../../services/api'
 import OrderStepper from '../../components/OrderStepper'
+import CancelOrderDialog from '../../components/CancelOrderDialog'
+import RefundDialog from '../../components/RefundDialog'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -69,6 +73,8 @@ interface OrderDetails {
   userEmail: string
   userFirstName: string
   userLastName: string
+  refundStatus?: string
+  refundAmount?: number
   payment?: {
     id: number
     paymentMethod: string
@@ -84,6 +90,8 @@ export default function OrderDetailsPage() {
   const [order, setOrder] = useState<OrderDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [polling, setPolling] = useState(true)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false)
 
   // Helper function to get the full image URL
   const getImageUrl = (imagePath: string | undefined) => {
@@ -163,8 +171,48 @@ export default function OrderDetailsPage() {
     )
   }
 
+  const canCancelOrder = () => {
+    return order && ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED'].includes(order.status)
+  }
+
+  const canInitiateRefund = () => {
+    return order && order.status === 'DELIVERED' && order.payment?.status === 'COMPLETED'
+  }
+
+  const getRefundStatusColor = (status?: string) => {
+    switch (status?.toUpperCase()) {
+      case 'SUCCESS':
+        return 'success'
+      case 'PROCESSING':
+        return 'warning'
+      case 'FAILED':
+        return 'error'
+      case 'PENDING':
+        return 'info'
+      default:
+        return 'default'
+    }
+  }
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      {/* Cancel Dialog */}
+      <CancelOrderDialog
+        open={cancelDialogOpen}
+        orderId={parseInt(orderId || '0')}
+        onClose={() => setCancelDialogOpen(false)}
+        onSuccess={() => fetchOrderDetails()}
+      />
+
+      {/* Refund Dialog */}
+      <RefundDialog
+        open={refundDialogOpen}
+        orderId={parseInt(orderId || '0')}
+        paidAmount={order?.payment?.amount || 0}
+        onClose={() => setRefundDialogOpen(false)}
+        onSuccess={() => fetchOrderDetails()}
+      />
+
       {/* Header */}
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
         <Button
@@ -182,10 +230,62 @@ export default function OrderDetailsPage() {
             Placed on {new Date(order.createdAtTimestamp).toLocaleString()}
           </Typography>
         </Box>
+        {canCancelOrder() && (
+          <Button
+            startIcon={<CloseIcon />}
+            onClick={() => setCancelDialogOpen(true)}
+            color="error"
+            variant="outlined"
+          >
+            Cancel Order
+          </Button>
+        )}
+        {canInitiateRefund() && (
+          <Button
+            startIcon={<LocalAtm />}
+            onClick={() => setRefundDialogOpen(true)}
+            color="primary"
+            variant="contained"
+          >
+            Request Refund
+          </Button>
+        )}
       </Box>
 
       {/* Order Stepper */}
       <OrderStepper status={order.status} statusHistory={order.statusHistory} />
+
+      {/* Refund Status */}
+      {order.refundStatus && order.refundStatus !== 'NOT_REQUIRED' && (
+        <Paper elevation={0} sx={{ p: 3, mb: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <LocalAtm color="primary" />
+            <Typography variant="h6" fontWeight="bold">
+              Refund Status
+            </Typography>
+          </Box>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Status
+              </Typography>
+              <Chip
+                label={order.refundStatus}
+                color={getRefundStatusColor(order.refundStatus)}
+                sx={{ mt: 1 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Refund Amount
+              </Typography>
+              <Typography variant="h6" fontWeight="bold" color="primary">
+                ${order.refundAmount?.toFixed(2)}
+              </Typography>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
 
       {/* Order Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>

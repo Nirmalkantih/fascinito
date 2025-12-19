@@ -13,6 +13,12 @@ import com.fascinito.pos.repository.VariationOptionRepository;
 import com.fascinito.pos.repository.UserRepository;
 import com.fascinito.pos.repository.PaymentRepository;
 import com.fascinito.pos.repository.OrderStatusHistoryRepository;
+import com.fascinito.pos.repository.CancellationReasonRepository;
+import com.fascinito.pos.repository.OrderCancellationRepository;
+import com.fascinito.pos.repository.OrderRefundRepository;
+import com.fascinito.pos.dto.order.CancelOrderRequest;
+import com.fascinito.pos.dto.order.InitiateRefundRequest;
+import com.fascinito.pos.dto.order.RefundResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -42,6 +48,10 @@ public class OrderService {
     private final UserRepository userRepository;
     private final PaymentRepository paymentRepository;
     private final OrderStatusHistoryRepository statusHistoryRepository;
+    private final CancellationReasonRepository cancellationReasonRepository;
+    private final OrderCancellationRepository orderCancellationRepository;
+    private final OrderRefundRepository orderRefundRepository;
+    private final RefundService refundService;
 
     /**
      * Create order from cart with stock deduction
@@ -300,9 +310,22 @@ public class OrderService {
      */
     @Transactional(readOnly = true)
     public OrderResponse getOrderById(Long orderId) {
-        Order order = orderRepository.findByIdWithDetails(orderId)
+        // Use custom query that doesn't eagerly fetch relationships to avoid MultipleBagFetchException
+        Order order = orderRepository.findByIdWithoutRelations(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
-        return mapToResponse(order);
+
+        // Fetch items with products separately to avoid multiple bag fetch exception
+        List<OrderItem> items = orderRepository.findItemsByOrderId(orderId);
+
+        // Initialize product images while session is open
+        for (OrderItem item : items) {
+            if (item.getProduct() != null && item.getProduct().getImages() != null) {
+                item.getProduct().getImages().size();
+            }
+        }
+
+        // Map to response - pass the pre-fetched items to avoid lazy loading
+        return mapToResponse(order, items);
     }
 
     /**
@@ -386,7 +409,84 @@ public class OrderService {
     }
 
     /**
-     * Cancel order and restore stock
+     * Cancel order with reason tracking and stock restoration
+     */
+    @Transactional
+    public OrderResponse cancelOrderWithReason(Long orderId, Long userId, CancelOrderRequest request) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        // Validate order can be cancelled (not delivered or already cancelled)
+        if (order.getStatus() == Order.OrderStatus.CANCELLED) {
+            throw new IllegalArgumentException("Order is already cancelled");
+        }
+        if (order.getStatus() == Order.OrderStatus.DELIVERED) {
+            throw new IllegalArgumentException("Cannot cancel a delivered order");
+        }
+        if (order.getStatus() == Order.OrderStatus.REFUNDED) {
+            throw new IllegalArgumentException("Cannot cancel a refunded order");
+        }
+
+        User currentUser = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // Restore stock for all items
+        for (OrderItem item : order.getItems()) {
+            restoreStock(item.getProduct(), item.getVariantCombination(), item.getVariationOption(), item.getQuantity());
+        }
+
+        // Get cancellation reason if provided
+        CancellationReason reason = null;
+        String reasonText = null;
+        if (request.getCancellationReasonId() != null) {
+            reason = cancellationReasonRepository.findById(request.getCancellationReasonId())
+                    .orElse(null);
+            if (reason != null) {
+                reasonText = reason.getReasonText();
+            }
+        }
+
+        // Create OrderCancellation record
+        OrderCancellation cancellation = OrderCancellation.builder()
+                .order(order)
+                .cancellationReason(reason)
+                .customMessage(request.getCustomMessage())
+                .cancelledBy(currentUser)
+                .cancelledAt(LocalDateTime.now())
+                .build();
+        orderCancellationRepository.save(cancellation);
+
+        // Update order status and cancellation fields
+        order.setStatus(Order.OrderStatus.CANCELLED);
+        order.setCancellationReason(reasonText != null ? reasonText : "User cancelled");
+        order.setCancellationMessage(request.getCustomMessage());
+        order.setCancelledAt(LocalDateTime.now());
+
+        // Set refund status based on payment status
+        if (order.getPayment() != null && order.getPayment().getStatus() == Payment.PaymentStatus.COMPLETED) {
+            order.setRefundStatus("PENDING");
+        } else {
+            order.setRefundStatus("NOT_REQUIRED");
+        }
+
+        orderRepository.save(order);
+
+        // Create status history record
+        OrderStatusHistory history = OrderStatusHistory.builder()
+                .order(order)
+                .status(Order.OrderStatus.CANCELLED)
+                .updatedBy(currentUser.getEmail())
+                .notes("Order cancelled: " + (reasonText != null ? reasonText : "User initiated cancellation"))
+                .build();
+        statusHistoryRepository.save(history);
+
+        log.info("Cancelled order {} by user {} with reason: {}", orderId, userId, reasonText);
+
+        return mapToResponse(order);
+    }
+
+    /**
+     * Legacy cancelOrder method for compatibility
      */
     @Transactional
     public void cancelOrder(Long orderId) {
@@ -453,6 +553,131 @@ public class OrderService {
     }
 
     /**
+     * Initiate refund for cancelled order
+     */
+    @Transactional
+    public RefundResponse initiateRefund(Long orderId, Long adminId, InitiateRefundRequest request) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        // Validate order is cancelled and paid
+        if (order.getStatus() != Order.OrderStatus.CANCELLED) {
+            throw new IllegalArgumentException("Only cancelled orders can be refunded");
+        }
+
+        if (order.getPayment() == null || order.getPayment().getStatus() != Payment.PaymentStatus.COMPLETED) {
+            throw new IllegalArgumentException("Order was not paid");
+        }
+
+        User admin = userRepository.findById(adminId)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin not found"));
+
+        // Calculate refund amount
+        BigDecimal refundAmount;
+        if ("FULL".equalsIgnoreCase(request.getRefundType())) {
+            refundAmount = order.getPayment().getAmount();
+        } else if ("PARTIAL".equalsIgnoreCase(request.getRefundType())) {
+            if (request.getRefundAmount() == null || request.getRefundAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Partial refund amount must be greater than 0");
+            }
+            if (request.getRefundAmount().compareTo(order.getPayment().getAmount()) > 0) {
+                throw new IllegalArgumentException("Refund amount cannot exceed paid amount");
+            }
+            refundAmount = request.getRefundAmount();
+        } else {
+            throw new IllegalArgumentException("Invalid refund type");
+        }
+
+        // Create OrderRefund record
+        OrderRefund refund = OrderRefund.builder()
+                .order(order)
+                .refundType(OrderRefund.RefundType.valueOf(request.getRefundType().toUpperCase()))
+                .refundAmount(refundAmount)
+                .refundStatus(OrderRefund.RefundStatus.PENDING)
+                .initiatedBy(admin)
+                .build();
+
+        OrderRefund savedRefund = orderRefundRepository.save(refund);
+
+        // Update order refund tracking
+        order.setRefundStatus("PENDING");
+        order.setRefundAmount(refundAmount);
+        orderRepository.save(order);
+
+        log.info("Refund initiated for order {} - Amount: {}, Type: {}, by Admin: {}",
+                orderId, refundAmount, request.getRefundType(), adminId);
+
+        // Trigger Razorpay refund processing synchronously to catch errors immediately
+        try {
+            refundService.processRefundOnRazorpay(savedRefund.getId());
+
+            // Refresh the refund from database to get updated status from RefundService
+            OrderRefund updatedRefund = orderRefundRepository.findById(savedRefund.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Refund not found after processing"));
+            return mapRefundToResponse(updatedRefund);
+        } catch (Exception e) {
+            log.error("Error processing refund on Razorpay: {}", e.getMessage(), e);
+            // Update refund status to FAILED
+            savedRefund.setRefundStatus(OrderRefund.RefundStatus.FAILED);
+            savedRefund.setFailureReason(e.getMessage());
+            orderRefundRepository.save(savedRefund);
+
+            order.setRefundStatus("FAILED");
+            orderRepository.save(order);
+
+            // Return the failed refund response
+            return mapRefundToResponse(savedRefund);
+        }
+    }
+
+    /**
+     * Get refund details for an order
+     */
+    @Transactional(readOnly = true)
+    public RefundResponse getOrderRefund(Long orderId) {
+        OrderRefund refund = orderRefundRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("No refund found for this order"));
+        return mapRefundToResponse(refund);
+    }
+
+    /**
+     * Get all pending refunds (for scheduled processing)
+     */
+    @Transactional(readOnly = true)
+    public List<OrderRefund> getPendingRefunds() {
+        return orderRefundRepository.findByRefundStatus(OrderRefund.RefundStatus.PENDING);
+    }
+
+    /**
+     * Update refund status (called after Razorpay processing)
+     */
+    @Transactional
+    public void updateRefundStatus(Long refundId, String status, String razorpayRefundId, String failureReason) {
+        OrderRefund refund = orderRefundRepository.findById(refundId)
+                .orElseThrow(() -> new ResourceNotFoundException("Refund not found"));
+
+        OrderRefund.RefundStatus newStatus = OrderRefund.RefundStatus.valueOf(status.toUpperCase());
+        refund.setRefundStatus(newStatus);
+        refund.setRazorpayRefundId(razorpayRefundId);
+        refund.setFailureReason(failureReason);
+        refund.setProcessedAt(LocalDateTime.now());
+
+        orderRefundRepository.save(refund);
+
+        // Update order status
+        Order order = refund.getOrder();
+        order.setRefundStatus(status);
+
+        if (newStatus == OrderRefund.RefundStatus.SUCCESS) {
+            order.setStatus(Order.OrderStatus.REFUNDED);
+        }
+
+        orderRepository.save(order);
+
+        log.info("Updated refund {} status to {} for order {}", refundId, status, order.getId());
+    }
+
+    /**
      * Map Payment entity to PaymentResponse DTO
      */
     private com.fascinito.pos.dto.order.PaymentResponse mapPaymentToResponse(Payment payment) {
@@ -482,6 +707,20 @@ public class OrderService {
      * Map Order entity to OrderResponse DTO
      */
     private OrderResponse mapToResponse(Order order) {
+        List<OrderItem> items = orderRepository.findItemsByOrderId(order.getId());
+
+        // Initialize product images while session is open
+        items.forEach(item -> {
+            item.getProduct().getImages().size();
+        });
+
+        return mapToResponse(order, items);
+    }
+
+    /**
+     * Map Order entity to OrderResponse DTO with pre-loaded items
+     */
+    private OrderResponse mapToResponse(Order order, List<OrderItem> items) {
         return OrderResponse.builder()
                 .id(order.getId())
                 .orderNumber(order.getOrderNumber())
@@ -498,7 +737,7 @@ public class OrderService {
                 .shippingAddress(order.getShippingAddress())
                 .billingAddress(order.getBillingAddress())
                 .notes(order.getNotes())
-                .items(order.getItems().stream()
+                .items(items.stream()
                         .map(item -> com.fascinito.pos.dto.order.OrderItemResponse.builder()
                                 .id(item.getId())
                                 .productId(item.getProduct().getId())
@@ -515,11 +754,17 @@ public class OrderService {
                                 .build())
                         .collect(Collectors.toList()))
                 .payment(order.getPayment() != null ? mapPaymentToResponse(order.getPayment()) : null)
-                .statusHistory(order.getStatusHistory() != null ? 
+                .statusHistory(order.getStatusHistory() != null ?
                         order.getStatusHistory().stream()
                                 .map(this::mapStatusHistoryToResponse)
-                                .collect(Collectors.toList()) : 
+                                .collect(Collectors.toList()) :
                         new ArrayList<>())
+                .cancellationReason(order.getCancellationReason())
+                .cancellationMessage(order.getCancellationMessage())
+                .cancelledAtTimestamp(order.getCancelledAt() != null ?
+                        order.getCancelledAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() : null)
+                .refundStatus(order.getRefundStatus())
+                .refundAmount(order.getRefundAmount())
                 .createdAtTimestamp(order.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
                 .updatedAtTimestamp(order.getUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
                 .build();
@@ -535,6 +780,23 @@ public class OrderService {
                 .notes(history.getNotes())
                 .updatedBy(history.getUpdatedBy())
                 .createdAtTimestamp(history.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
+                .build();
+    }
+
+    /**
+     * Map OrderRefund entity to RefundResponse DTO
+     */
+    private RefundResponse mapRefundToResponse(OrderRefund refund) {
+        return RefundResponse.builder()
+                .id(refund.getId())
+                .orderId(refund.getOrder().getId())
+                .refundType(refund.getRefundType().toString())
+                .refundAmount(refund.getRefundAmount())
+                .razorpayRefundId(refund.getRazorpayRefundId())
+                .refundStatus(refund.getRefundStatus().toString())
+                .failureReason(refund.getFailureReason())
+                .createdAtTimestamp(refund.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
+                .updatedAtTimestamp(refund.getUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
                 .build();
     }
 }

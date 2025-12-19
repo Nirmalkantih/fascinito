@@ -28,6 +28,12 @@ public class OrderResponse {
     private List<OrderItemResponse> items = new ArrayList<>();
     private PaymentResponse payment;
     private List<OrderStatusHistoryResponse> statusHistory = new ArrayList<>();
+    private String cancellationReason;
+    private String cancellationMessage;
+    private Long cancelledAtTimestamp;
+    private String refundStatus;
+    private BigDecimal refundAmount;
+    private RefundResponse refund;
     private Long createdAtTimestamp;
     private Long updatedAtTimestamp;
 }

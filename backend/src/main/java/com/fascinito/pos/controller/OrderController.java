@@ -2,8 +2,7 @@ package com.fascinito.pos.controller;
 
 import com.fascinito.pos.dto.ApiResponse;
 import com.fascinito.pos.dto.PageResponse;
-import com.fascinito.pos.dto.order.CheckoutRequest;
-import com.fascinito.pos.dto.order.OrderResponse;
+import com.fascinito.pos.dto.order.*;
 import com.fascinito.pos.entity.Order;
 import com.fascinito.pos.entity.User;
 import com.fascinito.pos.repository.UserRepository;
@@ -151,7 +150,23 @@ public class OrderController {
     }
 
     /**
-     * Cancel order and restore stock
+     * Cancel order with reason (Customer/Admin)
+     * POST /api/orders/{orderId}/cancel
+     * Body: {cancellationReasonId, customMessage}
+     */
+    @PostMapping("/{orderId}/cancel")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<OrderResponse>> cancelOrderWithReason(
+            @PathVariable Long orderId,
+            @RequestBody CancelOrderRequest request) {
+        Long userId = getCurrentUserId();
+        log.info("User {} requesting to cancel order {}", userId, orderId);
+        OrderResponse order = orderService.cancelOrderWithReason(orderId, userId, request);
+        return ResponseEntity.ok(ApiResponse.success(order));
+    }
+
+    /**
+     * Cancel order and restore stock (Legacy endpoint)
      * DELETE /api/orders/{orderId}
      */
     @DeleteMapping("/{orderId}")
@@ -159,6 +174,35 @@ public class OrderController {
     public ResponseEntity<ApiResponse<Object>> cancelOrder(@PathVariable Long orderId) {
         orderService.cancelOrder(orderId);
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /**
+     * Initiate refund for cancelled order (Admin only)
+     * POST /api/orders/{orderId}/refund
+     * Body: {refundType, refundAmount}
+     */
+    @PostMapping("/{orderId}/refund")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<RefundResponse>> initiateRefund(
+            @PathVariable Long orderId,
+            @RequestBody InitiateRefundRequest request) {
+        Long adminId = getCurrentUserId();
+        log.info("Admin {} initiating refund for order {}", adminId, orderId);
+        RefundResponse refund = orderService.initiateRefund(orderId, adminId, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(refund));
+    }
+
+    /**
+     * Get refund details for an order
+     * GET /api/orders/{orderId}/refund
+     */
+    @GetMapping("/{orderId}/refund")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<RefundResponse>> getOrderRefund(@PathVariable Long orderId) {
+        log.info("Fetching refund details for order {}", orderId);
+        RefundResponse refund = orderService.getOrderRefund(orderId);
+        return ResponseEntity.ok(ApiResponse.success(refund));
     }
 
     /**
