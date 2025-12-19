@@ -674,6 +674,18 @@ public class OrderService {
 
         if (newStatus == OrderRefund.RefundStatus.SUCCESS) {
             order.setStatus(Order.OrderStatus.REFUNDED);
+
+            // ✅ NEW: Restore inventory for all order items (same as cancelled orders)
+            log.info("Refund successful for order {} - restoring inventory", order.getId());
+            for (OrderItem orderItem : order.getItems()) {
+                restoreStock(
+                    orderItem.getProduct(),
+                    orderItem.getVariantCombination(),
+                    orderItem.getVariationOption(),
+                    orderItem.getQuantity()
+                );
+            }
+            log.info("Inventory restored for {} items in order {}", order.getItems().size(), order.getId());
         }
 
         orderRepository.save(order);
