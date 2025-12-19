@@ -67,7 +67,10 @@ export default function Orders() {
       }
 
       const data = await api.get(`/orders?page=${page}&size=${rowsPerPage}`)
-      setOrders(data.data?.content || [])
+      const ordersData = data.data?.content || []
+      // Sort orders by date in descending order (newest first)
+      const sortedOrders = ordersData.sort((a: Order, b: Order) => b.createdAtTimestamp - a.createdAtTimestamp)
+      setOrders(sortedOrders)
     } catch (error) {
       console.error('Error fetching orders:', error)
       toast.error('Failed to load orders')
