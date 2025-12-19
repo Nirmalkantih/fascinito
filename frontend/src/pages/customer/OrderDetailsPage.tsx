@@ -139,12 +139,16 @@ export default function OrderDetailsPage() {
   const fetchOrderDetails = async (silent = false) => {
     try {
       if (!silent) setLoading(true)
-      
+
       const data = await api.get(`/orders/${orderId}`)
       setOrder(data.data)
-      
-      // Stop polling if order is in final state
-      if (data.data.status === 'DELIVERED' || data.data.status === 'CANCELLED' || data.data.status === 'REFUNDED') {
+
+      // Continue polling if order is in RETURN_REQUEST state (waiting for admin approval)
+      // Stop polling if order is in final state or has been approved for refund processing
+      if ((data.data.status === 'DELIVERED' && !data.data.refundRequest) ||
+          (data.data.status === 'RETURN_REQUEST' && data.data.refundRequest?.status === 'APPROVED') ||
+          data.data.status === 'CANCELLED' ||
+          data.data.status === 'REFUNDED') {
         setPolling(false)
       }
     } catch (error) {
@@ -186,8 +190,14 @@ export default function OrderDetailsPage() {
     return order && ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED'].includes(order.status)
   }
 
-  const canInitiateRefund = () => {
-    return order && order.status === 'DELIVERED' && order.payment?.status === 'COMPLETED'
+  const canRequestRefund = () => {
+    // Can request refund if order is DELIVERED with no pending refund request
+    return order && order.status === 'DELIVERED' && order.payment?.status === 'COMPLETED' && !order.refundRequest
+  }
+
+  const canProcessRefund = () => {
+    // Can process refund if order is RETURN_REQUEST and refund request is APPROVED
+    return order && order.status === 'RETURN_REQUEST' && order.refundRequest?.status === 'APPROVED' && order.payment?.status === 'COMPLETED'
   }
 
   const getRefundStatusColor = (status?: string) => {
@@ -259,7 +269,7 @@ export default function OrderDetailsPage() {
             Cancel Order
           </Button>
         )}
-        {canInitiateRefund() && (
+        {canRequestRefund() && (
           <Button
             startIcon={<LocalAtm />}
             onClick={() => setRefundRequestDialogOpen(true)}
@@ -267,6 +277,16 @@ export default function OrderDetailsPage() {
             variant="contained"
           >
             Request Refund
+          </Button>
+        )}
+        {canProcessRefund() && (
+          <Button
+            startIcon={<LocalAtm />}
+            onClick={() => setRefundDialogOpen(true)}
+            color="success"
+            variant="contained"
+          >
+            Process Refund
           </Button>
         )}
       </Box>

@@ -101,16 +101,46 @@ export default function OrdersEnhanced() {
       color: '#9e9e9e'
     },
     {
+      title: 'Confirmed',
+      value: orders.filter(o => o.status?.toLowerCase() === 'confirmed').length,
+      icon: <CheckCircle />,
+      color: '#2196f3'
+    },
+    {
       title: 'Processing',
       value: orders.filter(o => o.status?.toLowerCase() === 'processing').length,
       icon: <ShoppingCart />,
       color: '#ff9800'
     },
     {
+      title: 'Shipped',
+      value: orders.filter(o => o.status?.toLowerCase() === 'shipped').length,
+      icon: <ShoppingCart />,
+      color: '#00bcd4'
+    },
+    {
       title: 'Delivered',
       value: orders.filter(o => o.status?.toLowerCase() === 'delivered').length,
       icon: <CheckCircle />,
       color: '#43e97b'
+    },
+    {
+      title: 'Return Request',
+      value: orders.filter(o => o.status?.toLowerCase() === 'return_request').length,
+      icon: <ShoppingCart />,
+      color: '#ff7043'
+    },
+    {
+      title: 'Cancelled',
+      value: orders.filter(o => o.status?.toLowerCase() === 'cancelled').length,
+      icon: <ShoppingCart />,
+      color: '#e53935'
+    },
+    {
+      title: 'Refunded',
+      value: orders.filter(o => o.status?.toLowerCase() === 'refunded').length,
+      icon: <AttachMoney />,
+      color: '#ab47bc'
     },
     {
       title: 'Total Revenue',
@@ -209,7 +239,7 @@ export default function OrdersEnhanced() {
               }}
             />
           </Box>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'nowrap', alignItems: 'center', overflowX: 'auto', minWidth: 0 }}>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', minWidth: 0 }}>
             <Button
               variant={statusFilter === 'all' ? 'contained' : 'outlined'}
               onClick={() => setStatusFilter('all')}
@@ -226,6 +256,15 @@ export default function OrdersEnhanced() {
               sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
             >
               Pending
+            </Button>
+            <Button
+              variant={statusFilter === 'confirmed' ? 'contained' : 'outlined'}
+              onClick={() => setStatusFilter('confirmed')}
+              size="small"
+              color="info"
+              sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              Confirmed
             </Button>
             <Button
               variant={statusFilter === 'processing' ? 'contained' : 'outlined'}
@@ -253,6 +292,33 @@ export default function OrdersEnhanced() {
               sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
             >
               Delivered
+            </Button>
+            <Button
+              variant={statusFilter === 'return_request' ? 'contained' : 'outlined'}
+              onClick={() => setStatusFilter('return_request')}
+              size="small"
+              color="error"
+              sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              Return Request
+            </Button>
+            <Button
+              variant={statusFilter === 'cancelled' ? 'contained' : 'outlined'}
+              onClick={() => setStatusFilter('cancelled')}
+              size="small"
+              color="error"
+              sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              Cancelled
+            </Button>
+            <Button
+              variant={statusFilter === 'refunded' ? 'contained' : 'outlined'}
+              onClick={() => setStatusFilter('refunded')}
+              size="small"
+              color="success"
+              sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              Refunded
             </Button>
           </Box>
         </Box>

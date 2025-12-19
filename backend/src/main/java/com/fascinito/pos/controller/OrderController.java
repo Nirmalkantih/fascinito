@@ -223,6 +223,34 @@ public class OrderController {
     }
 
     /**
+     * Approve refund request (Admin only)
+     * PUT /api/orders/{orderId}/refund-requests/{refundRequestId}/approve
+     */
+    @PutMapping("/{orderId}/refund-requests/{refundRequestId}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<com.fascinito.pos.dto.order.RefundRequestResponse>> approveRefundRequest(
+            @PathVariable Long orderId,
+            @PathVariable Long refundRequestId) {
+        log.info("Approving refund request {} for order {}", refundRequestId, orderId);
+        com.fascinito.pos.dto.order.RefundRequestResponse refundRequest = orderService.approveRefundRequest(orderId, refundRequestId);
+        return ResponseEntity.ok(ApiResponse.success(refundRequest));
+    }
+
+    /**
+     * Reject refund request (Admin only)
+     * PUT /api/orders/{orderId}/refund-requests/{refundRequestId}/reject
+     */
+    @PutMapping("/{orderId}/refund-requests/{refundRequestId}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<com.fascinito.pos.dto.order.RefundRequestResponse>> rejectRefundRequest(
+            @PathVariable Long orderId,
+            @PathVariable Long refundRequestId) {
+        log.info("Rejecting refund request {} for order {}", refundRequestId, orderId);
+        com.fascinito.pos.dto.order.RefundRequestResponse refundRequest = orderService.rejectRefundRequest(orderId, refundRequestId);
+        return ResponseEntity.ok(ApiResponse.success(refundRequest));
+    }
+
+    /**
      * Get current authenticated user ID
      */
     private Long getCurrentUserId() {

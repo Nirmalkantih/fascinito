@@ -858,7 +858,70 @@ public class OrderService {
                 .build();
 
         refundRequest = refundRequestRepository.save(refundRequest);
-        log.info("Refund request created for order {} by user {}", orderId, userId);
+
+        // Update order status to RETURN_REQUEST
+        order.setStatus(Order.OrderStatus.RETURN_REQUEST);
+        orderRepository.save(order);
+
+        log.info("Refund request created for order {} by user {}, status changed to RETURN_REQUEST", orderId, userId);
+
+        return mapRefundRequestToResponse(refundRequest);
+    }
+
+    /**
+     * Approve refund request and enable refund for customer
+     * Changes status to APPROVED and order status to RETURN_REQUEST
+     */
+    @Transactional
+    public RefundRequestResponse approveRefundRequest(Long orderId, Long refundRequestId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        RefundRequest refundRequest = refundRequestRepository.findById(refundRequestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Refund request not found"));
+
+        // Validate refund request belongs to this order
+        if (!refundRequest.getOrder().getId().equals(orderId)) {
+            throw new IllegalArgumentException("Refund request does not belong to this order");
+        }
+
+        // Update refund request status to APPROVED
+        refundRequest.setStatus(RefundRequest.RefundRequestStatus.APPROVED);
+        refundRequest.setUpdatedAt(LocalDateTime.now());
+        refundRequest = refundRequestRepository.save(refundRequest);
+
+        log.info("Refund request {} approved for order {}", refundRequestId, orderId);
+
+        return mapRefundRequestToResponse(refundRequest);
+    }
+
+    /**
+     * Reject refund request
+     * Changes status to REJECTED and order status back to DELIVERED
+     */
+    @Transactional
+    public RefundRequestResponse rejectRefundRequest(Long orderId, Long refundRequestId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        RefundRequest refundRequest = refundRequestRepository.findById(refundRequestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Refund request not found"));
+
+        // Validate refund request belongs to this order
+        if (!refundRequest.getOrder().getId().equals(orderId)) {
+            throw new IllegalArgumentException("Refund request does not belong to this order");
+        }
+
+        // Update refund request status to REJECTED
+        refundRequest.setStatus(RefundRequest.RefundRequestStatus.REJECTED);
+        refundRequest.setUpdatedAt(LocalDateTime.now());
+        refundRequest = refundRequestRepository.save(refundRequest);
+
+        // Revert order status back to DELIVERED
+        order.setStatus(Order.OrderStatus.DELIVERED);
+        orderRepository.save(order);
+
+        log.info("Refund request {} rejected for order {}", refundRequestId, orderId);
 
         return mapRefundRequestToResponse(refundRequest);
     }

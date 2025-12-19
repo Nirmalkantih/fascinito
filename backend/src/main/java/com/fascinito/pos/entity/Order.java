@@ -111,6 +111,7 @@ public class Order {
         PROCESSING,
         SHIPPED,
         DELIVERED,
+        RETURN_REQUEST,
         CANCELLED,
         REFUNDED
     }

@@ -394,9 +394,16 @@ export default function AdminOrderDetailsPage() {
                 variant="contained"
                 color="success"
                 size="small"
-                onClick={() => {
-                  // TODO: Call API to approve and process refund
-                  toast.info('Processing refund approval...')
+                onClick={async () => {
+                  try {
+                    await api.put(`/orders/${orderId}/refund-requests/${order.refundRequest?.id}/approve`)
+                    toast.success('Refund request approved successfully!')
+                    fetchOrderDetails()
+                  } catch (error: any) {
+                    console.error('Error approving refund request:', error)
+                    const errorMessage = error.response?.data?.message || 'Failed to approve refund request'
+                    toast.error(errorMessage)
+                  }
                 }}
               >
                 Approve & Process Refund
@@ -405,9 +412,16 @@ export default function AdminOrderDetailsPage() {
                 variant="outlined"
                 color="error"
                 size="small"
-                onClick={() => {
-                  // TODO: Call API to reject refund request
-                  toast.info('Rejecting refund request...')
+                onClick={async () => {
+                  try {
+                    await api.put(`/orders/${orderId}/refund-requests/${order.refundRequest?.id}/reject`)
+                    toast.success('Refund request rejected successfully!')
+                    fetchOrderDetails()
+                  } catch (error: any) {
+                    console.error('Error rejecting refund request:', error)
+                    const errorMessage = error.response?.data?.message || 'Failed to reject refund request'
+                    toast.error(errorMessage)
+                  }
                 }}
               >
                 Reject Request
