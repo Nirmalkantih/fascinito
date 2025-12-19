@@ -64,6 +64,15 @@ interface RefundInfo {
   createdAtTimestamp: number
 }
 
+interface RefundRequestInfo {
+  id: number
+  status: string
+  reason?: string
+  comment?: string
+  requestedByEmail?: string
+  createdAtTimestamp: number
+}
+
 interface OrderDetails {
   id: number
   orderNumber: string
@@ -95,6 +104,7 @@ interface OrderDetails {
     amount: number
   }
   refund?: RefundInfo
+  refundRequest?: RefundRequestInfo
 }
 
 export default function AdminOrderDetailsPage() {
@@ -319,6 +329,90 @@ export default function AdminOrderDetailsPage() {
             <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
               Razorpay Refund ID: {order.refund.razorpayRefundId}
             </Typography>
+          )}
+        </Paper>
+      )}
+
+      {/* Refund Request Status */}
+      {order.refundRequest && (
+        <Paper elevation={0} sx={{ p: 3, mb: 3, border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`, bgcolor: alpha(theme.palette.warning.main, 0.02) }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <LocalAtm color="warning" />
+            <Typography variant="h6" fontWeight="bold">
+              Customer Refund Request
+            </Typography>
+          </Box>
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Status
+              </Typography>
+              <Chip
+                label={order.refundRequest.status}
+                color={order.refundRequest.status === 'PENDING' ? 'warning' : order.refundRequest.status === 'APPROVED' ? 'success' : order.refundRequest.status === 'REJECTED' ? 'error' : 'default'}
+                sx={{ mt: 1 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Requested By
+              </Typography>
+              <Typography variant="body2" fontWeight="500">
+                {order.refundRequest.requestedByEmail}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Reason
+              </Typography>
+              <Typography variant="body2" fontWeight="500">
+                {order.refundRequest.reason || 'N/A'}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Request Date
+              </Typography>
+              <Typography variant="body2" fontWeight="500">
+                {new Date(order.refundRequest.createdAtTimestamp).toLocaleDateString()} {new Date(order.refundRequest.createdAtTimestamp).toLocaleTimeString()}
+              </Typography>
+            </Grid>
+            {order.refundRequest.comment && (
+              <Grid item xs={12}>
+                <Typography variant="body2" color="text.secondary">
+                  Comment
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1, p: 1.5, bgcolor: alpha(theme.palette.background.default, 0.5), borderRadius: 1 }}>
+                  {order.refundRequest.comment}
+                </Typography>
+              </Grid>
+            )}
+          </Grid>
+          {order.refundRequest.status === 'PENDING' && (
+            <Box sx={{ display: 'flex', gap: 1, pt: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+              <Button
+                variant="contained"
+                color="success"
+                size="small"
+                onClick={() => {
+                  // TODO: Call API to approve and process refund
+                  toast.info('Processing refund approval...')
+                }}
+              >
+                Approve & Process Refund
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                size="small"
+                onClick={() => {
+                  // TODO: Call API to reject refund request
+                  toast.info('Rejecting refund request...')
+                }}
+              >
+                Reject Request
+              </Button>
+            </Box>
           )}
         </Paper>
       )}
