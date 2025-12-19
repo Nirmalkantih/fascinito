@@ -507,6 +507,29 @@ CREATE INDEX IF NOT EXISTS idx_refund_retry_schedule_status_retry_at
 CREATE INDEX IF NOT EXISTS idx_refund_retry_schedule_refund_id
     ON refund_retry_schedule(refund_id);
 
+-- Refund requests table for customer refund requests on delivered orders
+CREATE TABLE IF NOT EXISTS refund_requests (
+    id BIGSERIAL PRIMARY KEY,
+    order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    requested_by BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    reason TEXT,
+    comment TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT refund_requests_status_check CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'PROCESSING', 'COMPLETED'))
+);
+
+-- Create indexes for efficient querying
+CREATE INDEX IF NOT EXISTS idx_refund_requests_order_id
+    ON refund_requests(order_id);
+
+CREATE INDEX IF NOT EXISTS idx_refund_requests_status
+    ON refund_requests(status);
+
+CREATE INDEX IF NOT EXISTS idx_refund_requests_requested_by
+    ON refund_requests(requested_by);
+
 -- Grant permissions if needed
 ALTER TABLE IF EXISTS users OWNER TO current_user;
 ALTER TABLE IF EXISTS roles OWNER TO current_user;
@@ -516,3 +539,4 @@ ALTER TABLE IF EXISTS cancellation_reasons OWNER TO current_user;
 ALTER TABLE IF EXISTS order_cancellations OWNER TO current_user;
 ALTER TABLE IF EXISTS order_refunds OWNER TO current_user;
 ALTER TABLE IF EXISTS refund_retry_schedule OWNER TO current_user;
+ALTER TABLE IF EXISTS refund_requests OWNER TO current_user;

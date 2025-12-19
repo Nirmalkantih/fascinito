@@ -206,6 +206,23 @@ public class OrderController {
     }
 
     /**
+     * Request refund for delivered order (Customer)
+     * POST /api/orders/{orderId}/request-refund
+     * Body: {reason, comment}
+     */
+    @PostMapping("/{orderId}/request-refund")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<com.fascinito.pos.dto.order.RefundRequestResponse>> requestRefund(
+            @PathVariable Long orderId,
+            @RequestBody com.fascinito.pos.dto.order.RequestRefundRequest request) {
+        Long userId = getCurrentUserId();
+        log.info("User {} requesting refund for order {}", userId, orderId);
+        com.fascinito.pos.dto.order.RefundRequestResponse refundRequest = orderService.requestRefund(orderId, userId, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(refundRequest));
+    }
+
+    /**
      * Get current authenticated user ID
      */
     private Long getCurrentUserId() {

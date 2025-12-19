@@ -19,6 +19,9 @@ import com.fascinito.pos.repository.OrderRefundRepository;
 import com.fascinito.pos.dto.order.CancelOrderRequest;
 import com.fascinito.pos.dto.order.InitiateRefundRequest;
 import com.fascinito.pos.dto.order.RefundResponse;
+import com.fascinito.pos.dto.order.RequestRefundRequest;
+import com.fascinito.pos.dto.order.RefundRequestResponse;
+import com.fascinito.pos.repository.RefundRequestRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -51,6 +54,7 @@ public class OrderService {
     private final CancellationReasonRepository cancellationReasonRepository;
     private final OrderCancellationRepository orderCancellationRepository;
     private final OrderRefundRepository orderRefundRepository;
+    private final RefundRequestRepository refundRequestRepository;
     private final RefundService refundService;
 
     /**
@@ -765,6 +769,10 @@ public class OrderService {
                         order.getCancelledAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() : null)
                 .refundStatus(order.getRefundStatus())
                 .refundAmount(order.getRefundAmount())
+                .refund(order.getRefunds() != null && !order.getRefunds().isEmpty() ?
+                        mapRefundToResponse(order.getRefunds().get(0)) : null)
+                .refundRequest(order.getRefundRequests() != null && !order.getRefundRequests().isEmpty() ?
+                        mapRefundRequestToResponse(order.getRefundRequests().get(0)) : null)
                 .createdAtTimestamp(order.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
                 .updatedAtTimestamp(order.getUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
                 .build();
@@ -798,5 +806,60 @@ public class OrderService {
                 .createdAtTimestamp(refund.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
                 .updatedAtTimestamp(refund.getUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
                 .build();
+    }
+
+    /**
+     * Map RefundRequest entity to RefundRequestResponse DTO
+     */
+    private RefundRequestResponse mapRefundRequestToResponse(RefundRequest refundRequest) {
+        return RefundRequestResponse.builder()
+                .id(refundRequest.getId())
+                .orderId(refundRequest.getOrder().getId())
+                .status(refundRequest.getStatus().toString())
+                .reason(refundRequest.getReason())
+                .comment(refundRequest.getComment())
+                .requestedByEmail(refundRequest.getRequestedBy().getEmail())
+                .createdAtTimestamp(refundRequest.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
+                .updatedAtTimestamp(refundRequest.getUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli())
+                .build();
+    }
+
+    /**
+     * Request refund for delivered order
+     * POST /api/orders/{orderId}/request-refund
+     */
+    @Transactional
+    public RefundRequestResponse requestRefund(Long orderId, Long userId, RequestRefundRequest request) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        // Validate order is in DELIVERED status
+        if (!order.getStatus().equals(Order.OrderStatus.DELIVERED)) {
+            throw new IllegalArgumentException("Refund can only be requested for DELIVERED orders");
+        }
+
+        // Check if order belongs to user (unless admin)
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // Check if refund request already exists for this order with PENDING status
+        if (refundRequestRepository.existsByOrderIdAndStatus(orderId, RefundRequest.RefundRequestStatus.PENDING)) {
+            throw new IllegalArgumentException("A refund request for this order is already pending");
+        }
+
+        // Create refund request
+        RefundRequest refundRequest = RefundRequest.builder()
+                .order(order)
+                .requestedBy(user)
+                .status(RefundRequest.RefundRequestStatus.PENDING)
+                .reason(request.getReason())
+                .comment(request.getComment())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        refundRequest = refundRequestRepository.save(refundRequest);
+        log.info("Refund request created for order {} by user {}", orderId, userId);
+
+        return mapRefundRequestToResponse(refundRequest);
     }
 }

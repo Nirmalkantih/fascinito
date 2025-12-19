@@ -34,6 +34,7 @@ import api from '../../services/api'
 import OrderStepper from '../../components/OrderStepper'
 import CancelOrderDialog from '../../components/CancelOrderDialog'
 import RefundDialog from '../../components/RefundDialog'
+import RefundRequestDialog from '../../components/RefundRequestDialog'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -51,6 +52,14 @@ interface StatusHistory {
   status: string
   notes?: string
   updatedBy?: string
+  createdAtTimestamp: number
+}
+
+interface RefundRequestInfo {
+  id: number
+  status: string
+  reason?: string
+  comment?: string
   createdAtTimestamp: number
 }
 
@@ -75,6 +84,7 @@ interface OrderDetails {
   userLastName: string
   refundStatus?: string
   refundAmount?: number
+  refundRequest?: RefundRequestInfo
   payment?: {
     id: number
     paymentMethod: string
@@ -92,6 +102,7 @@ export default function OrderDetailsPage() {
   const [polling, setPolling] = useState(true)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [refundDialogOpen, setRefundDialogOpen] = useState(false)
+  const [refundRequestDialogOpen, setRefundRequestDialogOpen] = useState(false)
 
   // Helper function to get the full image URL
   const getImageUrl = (imagePath: string | undefined) => {
@@ -213,6 +224,14 @@ export default function OrderDetailsPage() {
         onSuccess={() => fetchOrderDetails()}
       />
 
+      {/* Refund Request Dialog */}
+      <RefundRequestDialog
+        open={refundRequestDialogOpen}
+        orderId={parseInt(orderId || '0')}
+        onClose={() => setRefundRequestDialogOpen(false)}
+        onSuccess={() => fetchOrderDetails()}
+      />
+
       {/* Header */}
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
         <Button
@@ -243,7 +262,7 @@ export default function OrderDetailsPage() {
         {canInitiateRefund() && (
           <Button
             startIcon={<LocalAtm />}
-            onClick={() => setRefundDialogOpen(true)}
+            onClick={() => setRefundRequestDialogOpen(true)}
             color="primary"
             variant="contained"
           >
@@ -254,6 +273,48 @@ export default function OrderDetailsPage() {
 
       {/* Order Stepper */}
       <OrderStepper status={order.status} statusHistory={order.statusHistory} />
+
+      {/* Refund Request Status */}
+      {order.refundRequest && (
+        <Paper elevation={0} sx={{ p: 3, mb: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, bgcolor: alpha(theme.palette.warning.main, 0.02) }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <LocalAtm color="warning" />
+            <Typography variant="h6" fontWeight="bold">
+              Refund Request
+            </Typography>
+          </Box>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Status
+              </Typography>
+              <Chip
+                label={order.refundRequest.status}
+                color={order.refundRequest.status === 'PENDING' ? 'warning' : order.refundRequest.status === 'APPROVED' ? 'success' : 'default'}
+                sx={{ mt: 1 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Reason
+              </Typography>
+              <Typography variant="body2" fontWeight="500">
+                {order.refundRequest.reason || 'N/A'}
+              </Typography>
+            </Grid>
+            {order.refundRequest.comment && (
+              <Grid item xs={12}>
+                <Typography variant="body2" color="text.secondary">
+                  Details
+                </Typography>
+                <Typography variant="body2">
+                  {order.refundRequest.comment}
+                </Typography>
+              </Grid>
+            )}
+          </Grid>
+        </Paper>
+      )}
 
       {/* Refund Status */}
       {order.refundStatus && order.refundStatus !== 'NOT_REQUIRED' && (

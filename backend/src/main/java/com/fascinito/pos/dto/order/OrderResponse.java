@@ -34,6 +34,7 @@ public class OrderResponse {
     private String refundStatus;
     private BigDecimal refundAmount;
     private RefundResponse refund;
+    private RefundRequestResponse refundRequest;
     private Long createdAtTimestamp;
     private Long updatedAtTimestamp;
 }
