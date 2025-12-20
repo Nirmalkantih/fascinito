@@ -10,7 +10,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
   IconButton,
   TextField,
   Dialog,
@@ -25,6 +24,7 @@ import {
   Slide,
   useTheme,
 } from '@mui/material'
+import PaginationComponent from '../../components/PaginationComponent'
 import { TransitionProps } from '@mui/material/transitions'
 import {
   Add,
@@ -131,15 +131,6 @@ export default function Banners() {
   useEffect(() => {
     fetchBanners()
   }, [page, rowsPerPage])
-
-  const handlePageChange = (_event: unknown, newPage: number) => {
-    setPage(newPage)
-  }
-
-  const handleRowsPerPageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10))
-    setPage(0)
-  }
 
   const handleOpenDialog = (banner?: Banner) => {
     if (banner) {
@@ -479,16 +470,19 @@ export default function Banners() {
             )}
           </TableBody>
         </Table>
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
-          component="div"
-          count={totalElements}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handlePageChange}
-          onRowsPerPageChange={handleRowsPerPageChange}
-        />
       </TableContainer>
+      <Box sx={{ mt: 3 }}>
+        <PaginationComponent
+          page={page}
+          rowsPerPage={rowsPerPage}
+          totalElements={totalElements}
+          onPageChange={(newPage) => setPage(newPage)}
+          onRowsPerPageChange={(newSize) => {
+            setRowsPerPage(newSize);
+            setPage(0);
+          }}
+        />
+      </Box>
 
       {/* Dialog for Create/Edit Banner */}
       <Dialog

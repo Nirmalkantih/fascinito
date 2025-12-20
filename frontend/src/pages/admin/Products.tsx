@@ -14,11 +14,11 @@ import {
   Chip,
   TextField,
   InputAdornment,
-  TablePagination,
   alpha,
   useTheme,
   Avatar
 } from '@mui/material'
+import PaginationComponent from '../../components/PaginationComponent'
 import {
   Add,
   Edit,
@@ -381,25 +381,19 @@ export default function AdminProducts() {
             )}
           </TableBody>
         </Table>
-        <TablePagination
-          component="div"
-          count={totalElements}
+      </TableContainer>
+      <Box sx={{ mt: 3 }}>
+        <PaginationComponent
           page={page}
-          onPageChange={(_, newPage) => setPage(newPage)}
           rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={(e) => {
-            setRowsPerPage(parseInt(e.target.value, 10))
-            setPage(0)
-          }}
-          rowsPerPageOptions={[5, 10, 25, 50]}
-          sx={{
-            borderTop: `1px solid ${theme.palette.divider}`,
-            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-              fontWeight: 600
-            }
+          totalElements={totalElements}
+          onPageChange={(newPage) => setPage(newPage)}
+          onRowsPerPageChange={(newSize) => {
+            setRowsPerPage(newSize);
+            setPage(0);
           }}
         />
-      </TableContainer>
+      </Box>
     </Box>
   )
 }

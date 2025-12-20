@@ -9,7 +9,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
   IconButton,
   Chip,
   Dialog,
@@ -25,6 +24,7 @@ import {
   Avatar,
   alpha,
 } from '@mui/material';
+import PaginationComponent from '../../components/PaginationComponent';
 import {
   Search as SearchIcon,
   Person as PersonIcon,
@@ -132,15 +132,6 @@ const CustomersEnhanced: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleChangePage = (_: unknown, newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
   };
 
   return (
@@ -345,16 +336,19 @@ const CustomersEnhanced: React.FC = () => {
             )}
           </TableBody>
         </Table>
-        <TablePagination
-          component="div"
-          count={totalElements}
-          page={page}
-          onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[5, 10, 25, 50]}
-        />
       </TableContainer>
+      <Box sx={{ mt: 3 }}>
+        <PaginationComponent
+          page={page}
+          rowsPerPage={rowsPerPage}
+          totalElements={totalElements}
+          onPageChange={(newPage) => setPage(newPage)}
+          onRowsPerPageChange={(newSize) => {
+            setRowsPerPage(newSize);
+            setPage(0);
+          }}
+        />
+      </Box>
 
       {/* View Customer Dialog */}
       <Dialog

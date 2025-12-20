@@ -12,6 +12,8 @@ public class CheckoutRequest {
     private String billingAddress;
     private String notes;
     private BigDecimal discount;
+    private BigDecimal tax;  // Pre-calculated tax from cart
+    private BigDecimal shipping;  // Pre-calculated shipping from cart
     private String paymentMethod;  // CREDIT_CARD, DEBIT_CARD, PAYPAL, CASH, etc.
     private Boolean testMode;  // If true, allows checkout with empty cart for demo purposes
 }

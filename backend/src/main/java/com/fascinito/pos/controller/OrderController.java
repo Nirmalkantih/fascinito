@@ -63,7 +63,8 @@ public class OrderController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Long userId = getCurrentUserId();
-        Pageable pageable = PageRequest.of(page, size);
+        // Sort by createdAt descending to show latest orders first
+        Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.Direction.DESC, "createdAt");
         Page<OrderResponse> orders = orderService.getUserOrders(userId, pageable);
 
         PageResponse<OrderResponse> pageResponse = PageResponse.<OrderResponse>builder()

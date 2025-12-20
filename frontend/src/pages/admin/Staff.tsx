@@ -9,7 +9,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
   IconButton,
   Chip,
   Dialog,
@@ -32,6 +31,7 @@ import {
   Avatar,
   alpha,
 } from '@mui/material';
+import PaginationComponent from '../../components/PaginationComponent';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -298,15 +298,6 @@ const Staff: React.FC = () => {
     }
   };
 
-  const handleChangePage = (_: unknown, newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
   const getRoleColor = (role: string): 'primary' | 'secondary' | 'default' => {
     switch (role) {
       case 'ROLE_ADMIN':
@@ -565,16 +556,19 @@ const Staff: React.FC = () => {
             )}
           </TableBody>
         </Table>
-        <TablePagination
-          component="div"
-          count={totalElements}
-          page={page}
-          onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[5, 10, 25, 50]}
-        />
       </TableContainer>
+      <Box sx={{ mt: 3 }}>
+        <PaginationComponent
+          page={page}
+          rowsPerPage={rowsPerPage}
+          totalElements={totalElements}
+          onPageChange={(newPage) => setPage(newPage)}
+          onRowsPerPageChange={(newSize) => {
+            setRowsPerPage(newSize);
+            setPage(0);
+          }}
+        />
+      </Box>
 
       {/* Create/Edit Dialog */}
       <Dialog

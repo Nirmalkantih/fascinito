@@ -10,7 +10,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
   IconButton,
   TextField,
   Dialog,
@@ -27,6 +26,7 @@ import {
   Slide,
   useTheme,
 } from '@mui/material';
+import PaginationComponent from '../../components/PaginationComponent';
 import { TransitionProps } from '@mui/material/transitions';
 import { 
   Add, 
@@ -479,24 +479,19 @@ export default function VendorsEnhanced() {
             )}
           </TableBody>
         </Table>
-        <TablePagination
-          component="div"
-          count={totalElements}
+      </TableContainer>
+      <Box sx={{ mt: 3 }}>
+        <PaginationComponent
           page={page}
-          onPageChange={(_, newPage) => setPage(newPage)}
           rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={(e) => {
-            setRowsPerPage(parseInt(e.target.value, 10));
+          totalElements={totalElements}
+          onPageChange={(newPage) => setPage(newPage)}
+          onRowsPerPageChange={(newSize) => {
+            setRowsPerPage(newSize);
             setPage(0);
           }}
-          sx={{
-            borderTop: `1px solid ${theme.palette.divider}`,
-            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-              fontWeight: 600
-            }
-          }}
         />
-      </TableContainer>
+      </Box>
 
       {/* Dialog */}
       <Dialog

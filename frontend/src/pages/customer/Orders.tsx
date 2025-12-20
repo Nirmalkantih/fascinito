@@ -15,13 +15,13 @@ import {
   Paper,
   Button,
   alpha,
-  useTheme,
-  TablePagination
+  useTheme
 } from '@mui/material'
 import { Visibility as ViewIcon } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import api from '../../services/api'
+import PaginationComponent from '../../components/PaginationComponent'
 
 interface OrderItem {
   id: number
@@ -51,6 +51,7 @@ export default function Orders() {
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
+  const [totalElements, setTotalElements] = useState(0)
 
   useEffect(() => {
     fetchOrders()
@@ -68,9 +69,10 @@ export default function Orders() {
 
       const data = await api.get(`/orders?page=${page}&size=${rowsPerPage}`)
       const ordersData = data.data?.content || []
-      // Sort orders by date in descending order (newest first)
-      const sortedOrders = ordersData.sort((a: Order, b: Order) => b.createdAtTimestamp - a.createdAtTimestamp)
-      setOrders(sortedOrders)
+      const total = data.data?.totalElements || 0
+      // Backend now sorts by date descending, no need to sort on client
+      setOrders(ordersData)
+      setTotalElements(total)
     } catch (error) {
       console.error('Error fetching orders:', error)
       toast.error('Failed to load orders')
@@ -211,15 +213,16 @@ export default function Orders() {
                 ))}
               </TableBody>
             </Table>
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25]}
-              component="div"
-              count={orders.length}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={handleChangePage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-            />
+            <Box sx={{ mt: 3 }}>
+              <PaginationComponent
+                page={page}
+                rowsPerPage={rowsPerPage}
+                totalElements={totalElements}
+                onPageChange={(newPage) => handleChangePage(null, newPage)}
+                onRowsPerPageChange={(newSize) => handleChangeRowsPerPage({ target: { value: newSize.toString() } } as any)}
+                rowsPerPageOptions={[5, 10, 25]}
+              />
+            </Box>
           </Paper>
         </>
       )}

@@ -101,14 +101,13 @@ public class OrderService {
                 .build();
 
         BigDecimal subtotal = BigDecimal.ZERO;
-        BigDecimal taxAmount = BigDecimal.ZERO;
 
         // Create order items and DEDUCT STOCK
         for (CartItem cartItem : cartItems) {
             Product product = cartItem.getProduct();
             ProductVariantCombination variantCombination = cartItem.getVariantCombination();
             VariationOption variationOption = cartItem.getVariationOption();
-            
+
             // Determine price from variant combination, product sale price, or regular price
             BigDecimal price;
             if (variantCombination != null && variantCombination.getPrice() != null) {
@@ -116,12 +115,15 @@ public class OrderService {
             } else {
                 price = product.getSalePrice() != null ? product.getSalePrice() : product.getRegularPrice();
             }
-            
+
             BigDecimal itemSubtotal = price.multiply(new BigDecimal(cartItem.getQuantity()));
 
             // CRITICAL: Deduct stock from variant combination, variation option, or product
             deductStock(product, variantCombination, variationOption, cartItem.getQuantity());
 
+            // NOTE: Tax is already calculated at order level (from cart).
+            // Do NOT calculate per-item tax to avoid double-counting.
+            // The taxAmount field remains zero at the item level.
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .product(product)
@@ -130,22 +132,22 @@ public class OrderService {
                     .quantity(cartItem.getQuantity())
                     .unitPrice(price)
                     .subtotal(itemSubtotal)
-                    .taxAmount(itemSubtotal.multiply(new BigDecimal("0.10")))
-                    .totalPrice(itemSubtotal.multiply(new BigDecimal("1.10")))
+                    .taxAmount(BigDecimal.ZERO)  // Tax is at order level, not per item
+                    .totalPrice(itemSubtotal)  // Total price = subtotal (tax applied at order level)
                     .build();
 
             order.getItems().add(orderItem);
             subtotal = subtotal.add(itemSubtotal);
-            taxAmount = taxAmount.add(itemSubtotal.multiply(new BigDecimal("0.10")));
 
-            log.info("Created order item for product {} with quantity {}, variantCombination: {}, variationOption: {}", 
-                    product.getId(), cartItem.getQuantity(), 
+            log.info("Created order item for product {} with quantity {}, variantCombination: {}, variationOption: {}",
+                    product.getId(), cartItem.getQuantity(),
                     variantCombination != null ? variantCombination.getId() : "null",
                     variationOption != null ? variationOption.getId() : "null");
         }
 
-        // Calculate totals
-        BigDecimal shippingCost = cartItems.isEmpty() ? BigDecimal.ZERO : new BigDecimal("15.00");
+        // Use pre-calculated values from cart instead of recalculating
+        BigDecimal taxAmount = checkoutRequest.getTax() != null ? checkoutRequest.getTax() : BigDecimal.ZERO;
+        BigDecimal shippingCost = checkoutRequest.getShipping() != null ? checkoutRequest.getShipping() : BigDecimal.ZERO;
         BigDecimal discount = order.getDiscount() != null ? order.getDiscount() : BigDecimal.ZERO;
         BigDecimal totalAmount = subtotal.add(taxAmount).add(shippingCost).subtract(discount);
 
