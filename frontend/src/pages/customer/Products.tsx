@@ -70,24 +70,42 @@ export default function Products() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '')
   const [categoryFilter] = useState(searchParams.get('category') || '')
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useState(0)
+  const [rowsPerPage] = useState(12)
   const [allProducts, setAllProducts] = useState<Product[]>([])
+  const [totalElements, setTotalElements] = useState(0)
 
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  // Fetch products from API
+  // Fetch products from API with backend pagination
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true)
       try {
-        // Fetch only active and visible products
-        const response = await api.get('/products?page=0&size=1000&active=true&visibleToCustomers=true')
+        // Build query with search, pagination, and filters
+        const params: any = {
+          page,
+          size: rowsPerPage,
+          active: true,
+          visibleToCustomers: true
+        }
+
+        if (searchQuery) {
+          params.search = searchQuery
+        }
+
+        if (categoryFilter) {
+          params.category = categoryFilter
+        }
+
+        const response = await api.get('/products', { params })
         // Handle both ApiResponse wrapper and direct PageResponse
         const data = response.data || response
-        const products = data.data?.content || data.content || []
+        const pageData = data.data || data
+        const products = pageData.content || []
 
         // Ensure imageUrl is set from images array if not directly present
         const productsWithImages = products.map((product: Product) => {
@@ -107,41 +125,21 @@ export default function Products() {
         })
 
         setAllProducts(productsWithImages)
+        setTotalElements(pageData.totalElements || 0)
       } catch (error) {
         console.error('Error fetching products:', error)
         setAllProducts([])
+        setTotalElements(0)
       } finally {
         setLoading(false)
       }
     }
     fetchProducts()
-  }, [])
+  }, [page, searchQuery, categoryFilter, rowsPerPage])
 
-  // Filter products based on search query and category
-  const filteredProducts = allProducts.filter(product => {
-    // Check category filter
-    const productCategory = (product.categoryName || product.category || '').toLowerCase()
-    if (categoryFilter && productCategory !== categoryFilter.toLowerCase()) {
-      return false
-    }
-
-    // Check search query
-    if (searchQuery) {
-      const productName = (product.title || product.name || '').toLowerCase()
-      const productDesc = (product.description || '').toLowerCase()
-      return (
-        productName.includes(searchQuery.toLowerCase()) ||
-        productCategory.includes(searchQuery.toLowerCase()) ||
-        productDesc.includes(searchQuery.toLowerCase())
-      )
-    }
-
-    return true
-  })
-
-  // Paginate filtered products
-  const paginatedProducts = filteredProducts.slice((page - 1) * 12, page * 12)
-  const totalFilteredPages = Math.ceil(filteredProducts.length / 12)
+  // Use backend paginated products directly
+  const paginatedProducts = allProducts
+  const totalFilteredPages = Math.ceil(totalElements / rowsPerPage)
 
 
   // Reset to page 1 when search changes
@@ -442,7 +440,7 @@ export default function Products() {
         </Grid>
 
         {/* No Results Message */}
-        {!loading && filteredProducts.length === 0 && (
+        {!loading && allProducts.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 10 }}>
             <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
               No products found
@@ -461,12 +459,12 @@ export default function Products() {
         )}
 
         {/* Pagination */}
-        {!loading && filteredProducts.length > 0 && (
+        {!loading && allProducts.length > 0 && (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
             <Pagination
               count={totalFilteredPages}
-              page={page}
-              onChange={(_, value) => setPage(value)}
+              page={page + 1}
+              onChange={(_, value) => setPage(value - 1)}
               color="primary"
               size="large"
               sx={{
