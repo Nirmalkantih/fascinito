@@ -36,8 +36,8 @@ services:
       JWT_SECRET: yourSecretKeyForJWTTokenGenerationMustBeLongEnoughForHS256Algorithm
       CORS_ORIGINS: http://localhost:3000,http://localhost:5173
       UPLOAD_BASE_PATH: /app/uploads
-      RAZORPAY_KEY_ID: rzp_test_RoFnqXkY7esC5c
-      RAZORPAY_KEY_SECRET: Qm3g6rIDa3jolODW8SQ2QhmW
+      RAZORPAY_KEY_ID: rzp_test_RtAXKiGJCkcnmD
+      RAZORPAY_KEY_SECRET: vgJdlDo105tHAFxmgCXnjXdg
       RAZORPAY_CURRENCY: INR
       SHOW_SQL: true
       LOG_LEVEL: DEBUG
@@ -71,7 +71,7 @@ services:
       - pos-network
     environment:
       VITE_API_URL: http://localhost:8080/api
-      VITE_RAZORPAY_KEY_ID: rzp_test_1234567890abcd
+      VITE_RAZORPAY_KEY_ID: rzp_test_RtAXKiGJCkcnmD
     restart: unless-stopped
 
   pgadmin:

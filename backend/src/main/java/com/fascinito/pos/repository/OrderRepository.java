@@ -22,15 +22,27 @@ import java.util.Optional;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    Optional<Order> findByOrderNumber(String orderNumber);
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.user WHERE o.orderNumber = :orderNumber")
+    Optional<Order> findByOrderNumber(@Param("orderNumber") String orderNumber);
 
+    // OPTIMIZED: With batch loading for related entities
+    // Items and their products will be batch-fetched using @BatchSize
+    @Query("SELECT o FROM Order o WHERE o.user.id = :userId ORDER BY o.createdAt DESC")
+    Page<Order> findByUser(@Param("userId") Long userId, Pageable pageable);
+
+    // Alternative method for User entity instead of User object
     Page<Order> findByUser(User user, Pageable pageable);
 
-    Page<Order> findByStatus(Order.OrderStatus status, Pageable pageable);
+    @Query("SELECT o FROM Order o WHERE o.status = :status ORDER BY o.createdAt DESC")
+    Page<Order> findByStatus(@Param("status") Order.OrderStatus status, Pageable pageable);
 
     List<Order> findByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate);
 
-    @Query("SELECT oi FROM OrderItem oi JOIN FETCH oi.product p WHERE oi.order.id = :orderId")
+    // OPTIMIZED: Fetch order items with product details and images
+    @Query("SELECT DISTINCT oi FROM OrderItem oi " +
+           "LEFT JOIN FETCH oi.product p " +
+           "LEFT JOIN FETCH p.images " +
+           "WHERE oi.order.id = :orderId")
     List<OrderItem> findItemsByOrderId(@Param("orderId") Long orderId);
 
     @Query("SELECT DISTINCT o FROM Order o WHERE o.id = :orderId")

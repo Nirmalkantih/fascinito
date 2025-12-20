@@ -52,6 +52,24 @@ public class ProductService {
             Boolean visibleToCustomers,
             Boolean active
     ) {
+        // Use optimized repository methods for common queries to avoid N+1
+        if (search == null && vendorId == null && locationId == null) {
+            // Use optimized repository method for visible/active products
+            if (Boolean.TRUE.equals(visibleToCustomers) && Boolean.TRUE.equals(active)) {
+                if (categoryId != null) {
+                    return productRepository.findByCategoryIdAndVisibleToCustomersTrueAndActiveTrue(categoryId, pageable)
+                            .map(this::mapToResponse);
+                } else {
+                    return productRepository.findByVisibleToCustomersTrueAndActiveTrue(pageable)
+                            .map(this::mapToResponse);
+                }
+            } else if (Boolean.TRUE.equals(visibleToCustomers)) {
+                return productRepository.findByVisibleToCustomersTrue(pageable)
+                        .map(this::mapToResponse);
+            }
+        }
+
+        // Fall back to Specification for complex queries
         Specification<Product> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 

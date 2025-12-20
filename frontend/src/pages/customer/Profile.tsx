@@ -78,8 +78,7 @@ export default function Profile() {
       const updatedUser = {
         ...user,
         firstName: formData.firstName,
-        lastName: formData.lastName,
-        phone: formData.phone
+        lastName: formData.lastName
       }
       localStorage.setItem('user', JSON.stringify(updatedUser))
       setUser(updatedUser)
@@ -143,6 +142,10 @@ export default function Profile() {
               disabled
               variant="outlined"
               sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: alpha(theme.palette.primary.main, 0.05),
+                  cursor: 'not-allowed'
+                },
                 '& .MuiOutlinedInput-root.Mui-disabled': {
                   bgcolor: alpha(theme.palette.primary.main, 0.05)
                 }
@@ -193,11 +196,22 @@ export default function Profile() {
                 fullWidth
                 name="phone"
                 value={formData.phone}
-                onChange={handleInputChange}
-                disabled={!editing}
+                disabled
                 variant="outlined"
                 placeholder="Enter phone number"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.05),
+                    cursor: 'not-allowed'
+                  },
+                  '& .MuiOutlinedInput-root.Mui-disabled': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.05)
+                  }
+                }}
               />
+              <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'textSecondary' }}>
+                Your phone number cannot be changed
+              </Typography>
             </Grid>
           </Grid>
 

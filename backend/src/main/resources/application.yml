@@ -22,13 +22,23 @@ spring:
   
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: ${SHOW_SQL:true}
+      ddl-auto: validate
+    show-sql: ${SHOW_SQL:false}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-  
+        # Batch fetch size for lazy-loaded collections (optimization)
+        default_batch_fetch_size: 10
+        jdbc:
+          fetch_size: 10
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    out-of-order: false
+
   jackson:
     serialization:
       write-dates-as-timestamps: false

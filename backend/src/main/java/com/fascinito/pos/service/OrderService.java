@@ -359,14 +359,17 @@ public class OrderService {
     }
 
     /**
-     * Get user's orders
+     * Get user's orders (OPTIMIZED: Uses optimized query to avoid N+1)
      */
     @Transactional(readOnly = true)
     public Page<OrderResponse> getUserOrders(Long userId, Pageable pageable) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        // Verify user exists
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found");
+        }
 
-        return orderRepository.findByUser(user, pageable)
+        // Use optimized query method that avoids N+1
+        return orderRepository.findByUser(userId, pageable)
                 .map(this::mapToResponse);
     }
 
