@@ -318,15 +318,39 @@ public class OrderService {
         Order order = orderRepository.findByIdWithoutRelations(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
-        // Fetch items with products separately to avoid multiple bag fetch exception
+        // Fetch items with products (but NOT images yet to avoid MultipleBagFetchException)
         List<OrderItem> items = orderRepository.findItemsByOrderId(orderId);
 
-        // Initialize product images while session is open
-        for (OrderItem item : items) {
-            if (item.getProduct() != null && item.getProduct().getImages() != null) {
-                item.getProduct().getImages().size();
-            }
+        // ✅ FIX: Fetch product images separately to avoid "cannot simultaneously fetch multiple bags" error
+        if (!items.isEmpty()) {
+            List<Long> productIds = items.stream()
+                    .map(item -> item.getProduct().getId())
+                    .distinct()
+                    .collect(Collectors.toList());
+
+            // Fetch products with images in a separate query
+            java.util.Map<Long, Product> productsWithImages = orderRepository.findProductsWithImages(productIds)
+                    .stream()
+                    .collect(Collectors.toMap(Product::getId, p -> p));
+
+            // Replace products in items with ones that have images loaded
+            items.forEach(item -> {
+                Product productWithImages = productsWithImages.get(item.getProduct().getId());
+                if (productWithImages != null) {
+                    item.setProduct(productWithImages);
+                }
+            });
         }
+
+        // Fetch related collections separately to avoid MultipleBagFetchException
+        List<OrderStatusHistory> statusHistory = orderRepository.findStatusHistoryByOrderId(orderId);
+        order.setStatusHistory(statusHistory);
+
+        List<OrderRefund> refunds = orderRepository.findRefundsByOrderId(orderId);
+        order.setRefunds(refunds);
+
+        List<RefundRequest> refundRequests = orderRepository.findRefundRequestsByOrderId(orderId);
+        order.setRefundRequests(refundRequests);
 
         // Map to response - pass the pre-fetched items to avoid lazy loading
         return mapToResponse(order, items);
