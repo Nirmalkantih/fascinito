@@ -28,17 +28,18 @@ import {
   stepConnectorClasses,
   styled
 } from '@mui/material'
-import { 
-  ArrowBack, 
-  CheckCircle, 
-  LocalShipping, 
-  Payment, 
-  Receipt, 
+import {
+  ArrowBack,
+  CheckCircle,
+  LocalShipping,
+  Payment,
+  Receipt,
   Home,
   Check
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { Loader } from '../../components/Loader'
 import PaymentModal from '../../components/PaymentModal'
 import razorpayService from '../../services/razorpayService'
 import { PaymentVerificationResponse } from '../../types/razorpay'
@@ -377,11 +378,7 @@ export default function Checkout() {
   }
 
   if (loading) {
-    return (
-      <Container sx={{ py: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '500px' }}>
-        <CircularProgress />
-      </Container>
-    )
+    return <Loader fullScreen text="Loading checkout..." />
   }
 
   if (!cartData || cartData.items.length === 0) {

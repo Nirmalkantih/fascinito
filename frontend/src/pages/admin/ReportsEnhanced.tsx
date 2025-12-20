@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import {
   Box, Typography, Paper, Grid, Card, CardContent, Button, TextField,
   MenuItem, Table, TableBody, TableCell, TableContainer, TableHead,
-  TableRow, Chip, alpha, useTheme, CircularProgress, Tabs, Tab
+  TableRow, Chip, alpha, useTheme, Tabs, Tab
 } from '@mui/material';
+import { Loader } from '../../components/Loader';
 import {
   Download, Print, TrendingUp, CalendarToday, AttachMoney, Inventory, Refresh
 } from '@mui/icons-material';
@@ -121,7 +122,7 @@ export default function ReportsEnhanced() {
           <Typography variant="body1" color="text.secondary">Generate and analyze comprehensive business reports</Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="outlined" startIcon={loading ? <CircularProgress size={20} /> : <Refresh />} onClick={fetchReportData} disabled={loading} sx={{ fontWeight: 600 }}>Refresh</Button>
+          <Button variant="outlined" startIcon={<Refresh />} onClick={fetchReportData} disabled={loading} sx={{ fontWeight: 600 }}>Refresh</Button>
           <Button variant="outlined" startIcon={<Print />} onClick={handlePrint} sx={{ fontWeight: 600 }}>Print</Button>
           <Button variant="contained" startIcon={<Download />} onClick={() => handleExport(['sales', 'inventory', 'category'][tabValue])} sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', fontWeight: 600 }}>Export CSV</Button>
         </Box>
@@ -184,7 +185,7 @@ export default function ReportsEnhanced() {
 
         <TabPanel value={tabValue} index={0}>
           <Box sx={{ px: 3 }}>
-            {loading ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box> :
+            {loading ? <Loader text="Loading sales report..." /> :
             salesData.length > 0 ? (
               <TableContainer>
                 <Table>
@@ -214,7 +215,7 @@ export default function ReportsEnhanced() {
 
         <TabPanel value={tabValue} index={1}>
           <Box sx={{ px: 3 }}>
-            {loading ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box> :
+            {loading ? <Loader text="Loading inventory report..." /> :
             inventoryData.length > 0 ? (
               <TableContainer>
                 <Table>
@@ -243,7 +244,7 @@ export default function ReportsEnhanced() {
 
         <TabPanel value={tabValue} index={2}>
           <Box sx={{ px: 3 }}>
-            {loading ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box> :
+            {loading ? <Loader text="Loading category performance..." /> :
             categoryPerformance.length > 0 ? (
               <Grid container spacing={3}>
                 <Grid item xs={12}>

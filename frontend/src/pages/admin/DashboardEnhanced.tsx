@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Grid, Card, CardContent, Avatar, alpha, useTheme, Paper, Button, CircularProgress } from '@mui/material';
+import { Box, Typography, Grid, Card, CardContent, Avatar, alpha, useTheme, Paper, Button } from '@mui/material';
+import { Loader } from '../../components/Loader';
 import { 
   Inventory, 
   Category, 
@@ -155,6 +156,10 @@ export default function DashboardEnhanced() {
     }
   ].filter(card => !card.adminOnly || isAdmin());
 
+  if (loading) {
+    return <Loader fullScreen text="Loading dashboard..." />;
+  }
+
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
@@ -178,10 +183,10 @@ export default function DashboardEnhanced() {
         </Box>
         <Button
           variant="contained"
-          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Refresh />}
+          startIcon={<Refresh />}
           onClick={fetchDashboardData}
           disabled={loading}
-          sx={{ 
+          sx={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             px: 3,
             py: 1.5,

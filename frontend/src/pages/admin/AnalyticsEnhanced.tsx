@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
-  Grid, 
-  Card, 
+import {
+  Box,
+  Typography,
+  Paper,
+  Grid,
+  Card,
   CardContent,
-  CircularProgress,
   Chip,
   alpha,
   useTheme
 } from '@mui/material';
+import { Loader } from '../../components/Loader';
 import {
   TrendingUp,
   TrendingDown,
@@ -141,11 +141,7 @@ export default function AnalyticsEnhanced() {
   ];
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress size={60} />
-      </Box>
-    );
+    return <Loader fullScreen text="Loading analytics..." />;
   }
 
   return (
