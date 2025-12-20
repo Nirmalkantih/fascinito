@@ -301,9 +301,11 @@ public class ProductService {
                 String variationName = varReq.getName() != null && !varReq.getName().trim().isEmpty()
                     ? varReq.getName()
                     : varReq.getType();
+                log.info("Setting variation name: {} (requested: {})", variationName, varReq.getName());
                 variation.setName(variationName);
                 variation.setType(varReq.getType());
                 variation.setActive(varReq.getActive() != null ? varReq.getActive() : true);
+                log.info("Variation object after setting name: id={}, name={}, type={}", variation.getId(), variation.getName(), variation.getType());
 
                 // Handle variation options - UPDATE existing options instead of delete/recreate
                 if (varReq.getOptions() != null && !varReq.getOptions().isEmpty()) {
