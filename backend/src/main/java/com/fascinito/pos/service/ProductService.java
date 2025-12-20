@@ -297,6 +297,7 @@ public class ProductService {
                     variation = new ProductVariation();
                 }
 
+                variation.setName(varReq.getName());
                 variation.setType(varReq.getType());
                 variation.setActive(varReq.getActive() != null ? varReq.getActive() : true);
 
@@ -604,6 +605,7 @@ public class ProductService {
                     .map(var -> {
                         ProductVariationResponse varResponse = new ProductVariationResponse();
                         varResponse.setId(var.getId());
+                        varResponse.setName(var.getName());
                         varResponse.setType(var.getType());
                         varResponse.setActive(var.getActive());
                         varResponse.setCreatedAt(var.getCreatedAt());

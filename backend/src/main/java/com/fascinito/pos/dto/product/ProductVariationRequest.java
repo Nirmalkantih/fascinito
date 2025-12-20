@@ -16,6 +16,10 @@ public class ProductVariationRequest {
 
     private Long id;  // ID for updating existing variations, null for new ones
 
+    @NotBlank(message = "Variation name is required")
+    @Size(max = 100, message = "Variation name must not exceed 100 characters")
+    private String name;  // e.g., "Color Name", "Size Name"
+
     @NotBlank(message = "Variation type is required")
     @Size(max = 100, message = "Variation type must not exceed 100 characters")
     private String type;  // e.g., "Color", "Size", "Material"

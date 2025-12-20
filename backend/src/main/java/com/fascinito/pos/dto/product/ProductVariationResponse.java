@@ -13,6 +13,7 @@ import java.util.List;
 public class ProductVariationResponse {
 
     private Long id;
+    private String name;  // e.g., "Color Name", "Size Name"
     private String type;  // e.g., "Color", "Size", "Material"
     private Boolean active;
     private List<VariationOptionResponse> options;  // Specific choices for this variation type

@@ -29,6 +29,9 @@ public class ProductVariation {
     private Product product;
 
     @Column(nullable = false, length = 100)
+    private String name;  // e.g., "Red", "Large", "Cotton"
+
+    @Column(nullable = false, length = 100)
     private String type;  // e.g., "Color", "Size", "Material"
 
     @Column(nullable = false)
