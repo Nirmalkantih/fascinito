@@ -38,4 +38,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     @Query("SELECT COALESCE(SUM(p.stockQuantity), 0) FROM Product p WHERE p.category.id = :categoryId AND p.visibleToCustomers = true AND p.active = true")
     Integer getTotalStockByCategoryId(@Param("categoryId") Long categoryId);
+
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.images WHERE p.id IN :productIds")
+    java.util.List<Product> findByIdsWithImages(@Param("productIds") java.util.List<Long> productIds);
 }

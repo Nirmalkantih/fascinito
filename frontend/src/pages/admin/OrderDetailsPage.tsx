@@ -18,7 +18,8 @@ import {
   Divider,
   alpha,
   useTheme,
-  Chip
+  Chip,
+  Alert
 } from '@mui/material'
 import {
   ArrowBack,
@@ -26,15 +27,12 @@ import {
   Receipt,
   Payment as PaymentIcon,
   Person,
-  Close as CloseIcon,
   LocalAtm
 } from '@mui/icons-material'
 import { toast } from 'react-toastify'
 import api from '../../services/api'
 import OrderStepper from '../../components/OrderStepper'
-import CancelOrderDialog from '../../components/CancelOrderDialog'
 import RefundDialog from '../../components/RefundDialog'
-import RefundRequestDialog from '../../components/RefundRequestDialog'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -55,11 +53,23 @@ interface StatusHistory {
   createdAtTimestamp: number
 }
 
+interface RefundInfo {
+  id: number
+  refundType: string
+  refundAmount: number
+  razorpayRefundId?: string
+  refundStatus: string
+  settlementExpectedDate?: string
+  failureReason?: string
+  createdAtTimestamp: number
+}
+
 interface RefundRequestInfo {
   id: number
   status: string
   reason?: string
   comment?: string
+  requestedByEmail?: string
   createdAtTimestamp: number
 }
 
@@ -82,41 +92,36 @@ interface OrderDetails {
   userEmail: string
   userFirstName: string
   userLastName: string
+  cancellationReason?: string
+  cancellationMessage?: string
+  cancelledAtTimestamp?: number
   refundStatus?: string
   refundAmount?: number
-  refundRequest?: RefundRequestInfo
   payment?: {
     id: number
     paymentMethod: string
     status: string
     amount: number
   }
+  refund?: RefundInfo
+  refundRequest?: RefundRequestInfo
 }
 
-export default function OrderDetailsPage() {
+export default function AdminOrderDetailsPage() {
   const { orderId } = useParams<{ orderId: string }>()
   const navigate = useNavigate()
   const theme = useTheme()
   const [order, setOrder] = useState<OrderDetails | null>(null)
   const [loading, setLoading] = useState(true)
-  const [polling, setPolling] = useState(true)
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [refundDialogOpen, setRefundDialogOpen] = useState(false)
-  const [refundRequestDialogOpen, setRefundRequestDialogOpen] = useState(false)
 
-  // Helper function to get the full image URL
   const getImageUrl = (imagePath: string | undefined) => {
     if (!imagePath) {
       return 'https://via.placeholder.com/50x50?text=No+Image'
     }
-    
-    // If it's already a full URL, return it
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath
     }
-    
-    // The backend serves static files at /api/uploads but the path in DB is /uploads
-    // Use environment variable for backend URL
     const fullUrl = `${API_BASE_URL}${imagePath}`
     return fullUrl
   }
@@ -125,39 +130,37 @@ export default function OrderDetailsPage() {
     fetchOrderDetails()
   }, [orderId])
 
-  // Poll for order updates every 10 seconds
-  useEffect(() => {
-    if (!polling) return
-
-    const interval = setInterval(() => {
-      fetchOrderDetails(true) // Silent refresh
-    }, 10000)
-
-    return () => clearInterval(interval)
-  }, [orderId, polling])
-
-  const fetchOrderDetails = async (silent = false) => {
+  const fetchOrderDetails = async () => {
     try {
-      if (!silent) setLoading(true)
-
+      setLoading(true)
       const data = await api.get(`/orders/${orderId}`)
       setOrder(data.data)
-
-      // Continue polling if order is in RETURN_REQUEST state (waiting for admin approval)
-      // Stop polling if order is in final state or has been approved for refund processing
-      if ((data.data.status === 'DELIVERED' && !data.data.refundRequest) ||
-          (data.data.status === 'RETURN_REQUEST' && data.data.refundRequest?.status === 'APPROVED') ||
-          data.data.status === 'CANCELLED' ||
-          data.data.status === 'REFUNDED') {
-        setPolling(false)
-      }
     } catch (error) {
       console.error('Error fetching order details:', error)
-      if (!silent) {
-        toast.error('Failed to load order details')
-      }
+      toast.error('Failed to load order details')
     } finally {
-      if (!silent) setLoading(false)
+      setLoading(false)
+    }
+  }
+
+  const canProcessRefund = () => {
+    return order && order.status === 'CANCELLED' && order.payment?.status === 'COMPLETED'
+  }
+
+  const getRefundStatusColor = (status?: string) => {
+    switch (status?.toUpperCase()) {
+      case 'SUCCESS':
+        return 'success'
+      case 'PROCESSING':
+        return 'warning'
+      case 'FAILED':
+        return 'error'
+      case 'PENDING':
+        return 'info'
+      case 'PENDING_SETTLEMENT':
+        return 'info'
+      default:
+        return 'default'
     }
   }
 
@@ -177,7 +180,7 @@ export default function OrderDetailsPage() {
         </Typography>
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => navigate('/orders')}
+          onClick={() => navigate('/admin/orders')}
           sx={{ mt: 2 }}
         >
           Back to Orders
@@ -186,59 +189,14 @@ export default function OrderDetailsPage() {
     )
   }
 
-  const canCancelOrder = () => {
-    return order && ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED'].includes(order.status)
-  }
-
-  const canRequestRefund = () => {
-    // Can request refund if order is DELIVERED with no pending refund request
-    return order && order.status === 'DELIVERED' && order.payment?.status === 'COMPLETED' && !order.refundRequest
-  }
-
-  const canProcessRefund = () => {
-    // Can process refund if order is RETURN_REQUEST and refund request is APPROVED
-    return order && order.status === 'RETURN_REQUEST' && order.refundRequest?.status === 'APPROVED' && order.payment?.status === 'COMPLETED'
-  }
-
-  const getRefundStatusColor = (status?: string) => {
-    switch (status?.toUpperCase()) {
-      case 'SUCCESS':
-        return 'success'
-      case 'PROCESSING':
-        return 'warning'
-      case 'FAILED':
-        return 'error'
-      case 'PENDING':
-        return 'info'
-      default:
-        return 'default'
-    }
-  }
-
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      {/* Cancel Dialog */}
-      <CancelOrderDialog
-        open={cancelDialogOpen}
-        orderId={parseInt(orderId || '0')}
-        onClose={() => setCancelDialogOpen(false)}
-        onSuccess={() => fetchOrderDetails()}
-      />
-
       {/* Refund Dialog */}
       <RefundDialog
         open={refundDialogOpen}
         orderId={parseInt(orderId || '0')}
-        paidAmount={order?.payment?.amount || 0}
+        paidAmount={order.payment?.amount || 0}
         onClose={() => setRefundDialogOpen(false)}
-        onSuccess={() => fetchOrderDetails()}
-      />
-
-      {/* Refund Request Dialog */}
-      <RefundRequestDialog
-        open={refundRequestDialogOpen}
-        orderId={parseInt(orderId || '0')}
-        onClose={() => setRefundRequestDialogOpen(false)}
         onSuccess={() => fetchOrderDetails()}
       />
 
@@ -246,7 +204,7 @@ export default function OrderDetailsPage() {
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => navigate('/orders')}
+          onClick={() => navigate('/admin/orders')}
           variant="outlined"
         >
           Back
@@ -259,31 +217,11 @@ export default function OrderDetailsPage() {
             Placed on {new Date(order.createdAtTimestamp).toLocaleString()}
           </Typography>
         </Box>
-        {canCancelOrder() && (
-          <Button
-            startIcon={<CloseIcon />}
-            onClick={() => setCancelDialogOpen(true)}
-            color="error"
-            variant="outlined"
-          >
-            Cancel Order
-          </Button>
-        )}
-        {canRequestRefund() && (
-          <Button
-            startIcon={<LocalAtm />}
-            onClick={() => setRefundRequestDialogOpen(true)}
-            color="primary"
-            variant="contained"
-          >
-            Request Refund
-          </Button>
-        )}
         {canProcessRefund() && (
           <Button
             startIcon={<LocalAtm />}
             onClick={() => setRefundDialogOpen(true)}
-            color="success"
+            color="primary"
             variant="contained"
           >
             Process Refund
@@ -294,50 +232,64 @@ export default function OrderDetailsPage() {
       {/* Order Stepper */}
       <OrderStepper status={order.status} statusHistory={order.statusHistory} />
 
-      {/* Refund Request Status */}
-      {order.refundRequest && (
-        <Paper elevation={0} sx={{ p: 3, mb: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, bgcolor: alpha(theme.palette.warning.main, 0.02) }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <LocalAtm color="warning" />
-            <Typography variant="h6" fontWeight="bold">
-              Refund Request
+      {/* Cancellation Info */}
+      {order.status === 'CANCELLED' && (
+        <Alert severity="warning" sx={{ my: 3 }}>
+          <Box>
+            <Typography variant="subtitle2" fontWeight="bold">
+              Order Cancelled
+            </Typography>
+            <Typography variant="body2">
+              Reason: {order.cancellationReason || 'Not specified'}
+            </Typography>
+            {order.cancellationMessage && (
+              <Typography variant="body2">
+                Message: {order.cancellationMessage}
+              </Typography>
+            )}
+            <Typography variant="caption" color="text.secondary">
+              Cancelled on {order.cancelledAtTimestamp ? new Date(order.cancelledAtTimestamp).toLocaleString() : 'Unknown'}
             </Typography>
           </Box>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="body2" color="text.secondary">
-                Status
-              </Typography>
-              <Chip
-                label={order.refundRequest.status}
-                color={order.refundRequest.status === 'PENDING' ? 'warning' : order.refundRequest.status === 'APPROVED' ? 'success' : 'default'}
-                sx={{ mt: 1 }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="body2" color="text.secondary">
-                Reason
-              </Typography>
-              <Typography variant="body2" fontWeight="500">
-                {order.refundRequest.reason || 'N/A'}
-              </Typography>
-            </Grid>
-            {order.refundRequest.comment && (
-              <Grid item xs={12}>
-                <Typography variant="body2" color="text.secondary">
-                  Details
-                </Typography>
-                <Typography variant="body2">
-                  {order.refundRequest.comment}
-                </Typography>
-              </Grid>
-            )}
-          </Grid>
-        </Paper>
+        </Alert>
       )}
 
-      {/* Refund Status */}
-      {order.refundStatus && order.refundStatus !== 'NOT_REQUIRED' && (
+      {/* Refund Status - Settlement Hold */}
+      {order.refund?.refundStatus === 'PENDING_SETTLEMENT' && (
+        <Alert severity="info" sx={{ my: 3, bgcolor: '#fff3cd', border: '1px solid #ffc107' }}>
+          <Box>
+            <Typography variant="subtitle2" fontWeight="bold" sx={{ color: '#856404', mb: 1 }}>
+              ⏳ Refund Scheduled
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#856404', mb: 1 }}>
+              Your refund will be automatically processed after payment settlement completes.
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#856404', mb: 1 }}>
+              <strong>{order.refund?.failureReason}</strong>
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#856404' }}>
+              You don't need to do anything - we'll handle this automatically.
+            </Typography>
+          </Box>
+        </Alert>
+      )}
+
+      {/* Refund Status - Failed */}
+      {order.refund?.refundStatus === 'FAILED' && (
+        <Alert severity="error" sx={{ my: 3 }}>
+          <Box>
+            <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
+              ❌ Refund Failed
+            </Typography>
+            <Typography variant="body2">
+              {order.refund?.failureReason}
+            </Typography>
+          </Box>
+        </Alert>
+      )}
+
+      {/* Refund Status - General */}
+      {order.refundStatus && order.refundStatus !== 'NOT_REQUIRED' && order.refund?.refundStatus !== 'PENDING_SETTLEMENT' && order.refund?.refundStatus !== 'FAILED' && (
         <Paper elevation={0} sx={{ p: 3, mb: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
             <LocalAtm color="primary" />
@@ -346,7 +298,7 @@ export default function OrderDetailsPage() {
             </Typography>
           </Box>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={4}>
               <Typography variant="body2" color="text.secondary">
                 Status
               </Typography>
@@ -356,7 +308,7 @@ export default function OrderDetailsPage() {
                 sx={{ mt: 1 }}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={4}>
               <Typography variant="body2" color="text.secondary">
                 Refund Amount
               </Typography>
@@ -364,7 +316,118 @@ export default function OrderDetailsPage() {
                 ${order.refundAmount?.toFixed(2)}
               </Typography>
             </Grid>
+            <Grid item xs={12} sm={4}>
+              <Typography variant="body2" color="text.secondary">
+                Type
+              </Typography>
+              <Typography variant="body2" fontWeight="bold">
+                {order.refund?.refundType || 'N/A'}
+              </Typography>
+            </Grid>
           </Grid>
+          {order.refund?.razorpayRefundId && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+              Razorpay Refund ID: {order.refund.razorpayRefundId}
+            </Typography>
+          )}
+        </Paper>
+      )}
+
+      {/* Refund Request Status */}
+      {order.refundRequest && (
+        <Paper elevation={0} sx={{ p: 3, mb: 3, border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`, bgcolor: alpha(theme.palette.warning.main, 0.02) }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <LocalAtm color="warning" />
+            <Typography variant="h6" fontWeight="bold">
+              Customer Refund Request
+            </Typography>
+          </Box>
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Status
+              </Typography>
+              <Chip
+                label={order.refundRequest.status}
+                color={order.refundRequest.status === 'PENDING' ? 'warning' : order.refundRequest.status === 'APPROVED' ? 'success' : order.refundRequest.status === 'REJECTED' ? 'error' : 'default'}
+                sx={{ mt: 1 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Requested By
+              </Typography>
+              <Typography variant="body2" fontWeight="500">
+                {order.refundRequest.requestedByEmail}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Reason
+              </Typography>
+              <Typography variant="body2" fontWeight="500">
+                {order.refundRequest.reason || 'N/A'}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Request Date
+              </Typography>
+              <Typography variant="body2" fontWeight="500">
+                {new Date(order.refundRequest.createdAtTimestamp).toLocaleDateString()} {new Date(order.refundRequest.createdAtTimestamp).toLocaleTimeString()}
+              </Typography>
+            </Grid>
+            {order.refundRequest.comment && (
+              <Grid item xs={12}>
+                <Typography variant="body2" color="text.secondary">
+                  Comment
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1, p: 1.5, bgcolor: alpha(theme.palette.background.default, 0.5), borderRadius: 1 }}>
+                  {order.refundRequest.comment}
+                </Typography>
+              </Grid>
+            )}
+          </Grid>
+          {order.refundRequest.status === 'PENDING' && (
+            <Box sx={{ display: 'flex', gap: 1, pt: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+              <Button
+                variant="contained"
+                color="success"
+                size="small"
+                onClick={async () => {
+                  try {
+                    await api.put(`/orders/${orderId}/refund-requests/${order.refundRequest?.id}/approve`)
+                    toast.success('Refund request approved successfully!')
+                    fetchOrderDetails()
+                  } catch (error: any) {
+                    console.error('Error approving refund request:', error)
+                    const errorMessage = error.response?.data?.message || 'Failed to approve refund request'
+                    toast.error(errorMessage)
+                  }
+                }}
+              >
+                Approve & Process Refund
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                size="small"
+                onClick={async () => {
+                  try {
+                    await api.put(`/orders/${orderId}/refund-requests/${order.refundRequest?.id}/reject`)
+                    toast.success('Refund request rejected successfully!')
+                    fetchOrderDetails()
+                  } catch (error: any) {
+                    console.error('Error rejecting refund request:', error)
+                    const errorMessage = error.response?.data?.message || 'Failed to reject refund request'
+                    toast.error(errorMessage)
+                  }
+                }}
+              >
+                Reject Request
+              </Button>
+            </Box>
+          )}
         </Paper>
       )}
 
@@ -471,7 +534,7 @@ export default function OrderDetailsPage() {
                       }}
                       onError={(e) => {
                         const target = e.target as HTMLImageElement
-                        target.onerror = null // Prevent infinite loop
+                        target.onerror = null
                         target.src = 'https://via.placeholder.com/50x50?text=No+Image'
                       }}
                     />

@@ -2,8 +2,7 @@ package com.fascinito.pos.controller;
 
 import com.fascinito.pos.dto.ApiResponse;
 import com.fascinito.pos.dto.PageResponse;
-import com.fascinito.pos.dto.order.CheckoutRequest;
-import com.fascinito.pos.dto.order.OrderResponse;
+import com.fascinito.pos.dto.order.*;
 import com.fascinito.pos.entity.Order;
 import com.fascinito.pos.entity.User;
 import com.fascinito.pos.repository.UserRepository;
@@ -151,7 +150,23 @@ public class OrderController {
     }
 
     /**
-     * Cancel order and restore stock
+     * Cancel order with reason (Customer/Admin)
+     * POST /api/orders/{orderId}/cancel
+     * Body: {cancellationReasonId, customMessage}
+     */
+    @PostMapping("/{orderId}/cancel")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<OrderResponse>> cancelOrderWithReason(
+            @PathVariable Long orderId,
+            @RequestBody CancelOrderRequest request) {
+        Long userId = getCurrentUserId();
+        log.info("User {} requesting to cancel order {}", userId, orderId);
+        OrderResponse order = orderService.cancelOrderWithReason(orderId, userId, request);
+        return ResponseEntity.ok(ApiResponse.success(order));
+    }
+
+    /**
+     * Cancel order and restore stock (Legacy endpoint)
      * DELETE /api/orders/{orderId}
      */
     @DeleteMapping("/{orderId}")
@@ -159,6 +174,80 @@ public class OrderController {
     public ResponseEntity<ApiResponse<Object>> cancelOrder(@PathVariable Long orderId) {
         orderService.cancelOrder(orderId);
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /**
+     * Initiate refund for cancelled order (Admin only)
+     * POST /api/orders/{orderId}/refund
+     * Body: {refundType, refundAmount}
+     */
+    @PostMapping("/{orderId}/refund")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<RefundResponse>> initiateRefund(
+            @PathVariable Long orderId,
+            @RequestBody InitiateRefundRequest request) {
+        Long adminId = getCurrentUserId();
+        log.info("Admin {} initiating refund for order {}", adminId, orderId);
+        RefundResponse refund = orderService.initiateRefund(orderId, adminId, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(refund));
+    }
+
+    /**
+     * Get refund details for an order
+     * GET /api/orders/{orderId}/refund
+     */
+    @GetMapping("/{orderId}/refund")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<RefundResponse>> getOrderRefund(@PathVariable Long orderId) {
+        log.info("Fetching refund details for order {}", orderId);
+        RefundResponse refund = orderService.getOrderRefund(orderId);
+        return ResponseEntity.ok(ApiResponse.success(refund));
+    }
+
+    /**
+     * Request refund for delivered order (Customer)
+     * POST /api/orders/{orderId}/request-refund
+     * Body: {reason, comment}
+     */
+    @PostMapping("/{orderId}/request-refund")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ApiResponse<com.fascinito.pos.dto.order.RefundRequestResponse>> requestRefund(
+            @PathVariable Long orderId,
+            @RequestBody com.fascinito.pos.dto.order.RequestRefundRequest request) {
+        Long userId = getCurrentUserId();
+        log.info("User {} requesting refund for order {}", userId, orderId);
+        com.fascinito.pos.dto.order.RefundRequestResponse refundRequest = orderService.requestRefund(orderId, userId, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(refundRequest));
+    }
+
+    /**
+     * Approve refund request (Admin only)
+     * PUT /api/orders/{orderId}/refund-requests/{refundRequestId}/approve
+     */
+    @PutMapping("/{orderId}/refund-requests/{refundRequestId}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<com.fascinito.pos.dto.order.RefundRequestResponse>> approveRefundRequest(
+            @PathVariable Long orderId,
+            @PathVariable Long refundRequestId) {
+        log.info("Approving refund request {} for order {}", refundRequestId, orderId);
+        com.fascinito.pos.dto.order.RefundRequestResponse refundRequest = orderService.approveRefundRequest(orderId, refundRequestId);
+        return ResponseEntity.ok(ApiResponse.success(refundRequest));
+    }
+
+    /**
+     * Reject refund request (Admin only)
+     * PUT /api/orders/{orderId}/refund-requests/{refundRequestId}/reject
+     */
+    @PutMapping("/{orderId}/refund-requests/{refundRequestId}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<com.fascinito.pos.dto.order.RefundRequestResponse>> rejectRefundRequest(
+            @PathVariable Long orderId,
+            @PathVariable Long refundRequestId) {
+        log.info("Rejecting refund request {} for order {}", refundRequestId, orderId);
+        com.fascinito.pos.dto.order.RefundRequestResponse refundRequest = orderService.rejectRefundRequest(orderId, refundRequestId);
+        return ResponseEntity.ok(ApiResponse.success(refundRequest));
     }
 
     /**
