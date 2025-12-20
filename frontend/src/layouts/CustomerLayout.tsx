@@ -135,7 +135,8 @@ export default function CustomerLayout() {
                   fontWeight: 800,
                   letterSpacing: '0.5px',
                   lineHeight: 1.2,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  color: '#ffffff'
                 }}
                 onClick={() => navigate('/')}
               >
@@ -147,13 +148,25 @@ export default function CustomerLayout() {
                   size="small"
                   sx={{
                     height: 20,
-                    bgcolor: alpha('#ffffff', 0.2),
-                    color: 'white',
+                    bgcolor: alpha('#ffffff', 0.25),
+                    color: '#ffffff',
                     fontWeight: 600,
-                    fontSize: '0.7rem',
+                    fontSize: '0.75rem',
                     '& .MuiChip-label': { px: 1 }
                   }}
                 />
+              )}
+              {!isAuthenticated && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: alpha('#ffffff', 0.8),
+                    fontWeight: 500,
+                    fontSize: '0.7rem'
+                  }}
+                >
+                  Online Shopping
+                </Typography>
               )}
             </Box>
           </Box>
