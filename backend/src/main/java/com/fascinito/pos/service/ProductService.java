@@ -297,7 +297,11 @@ public class ProductService {
                     variation = new ProductVariation();
                 }
 
-                variation.setName(varReq.getName());
+                // Use provided name or fallback to type if name is not provided
+                String variationName = varReq.getName() != null && !varReq.getName().trim().isEmpty()
+                    ? varReq.getName()
+                    : varReq.getType();
+                variation.setName(variationName);
                 variation.setType(varReq.getType());
                 variation.setActive(varReq.getActive() != null ? varReq.getActive() : true);
 
