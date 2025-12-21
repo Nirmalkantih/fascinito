@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import java.util.Collections;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -677,5 +678,27 @@ public class ProductService {
         }
 
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductResponse> getRelatedProducts(Long productId, int limit) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
+
+        // Return empty list if product has no category
+        if (product.getCategory() == null) {
+            return Collections.emptyList();
+        }
+
+        // Find related products in same category
+        Pageable pageable = org.springframework.data.domain.PageRequest.of(0, limit);
+        List<Product> relatedProducts = productRepository.findRelatedProducts(
+                product.getCategory().getId(),
+                productId,
+                pageable);
+
+        return relatedProducts.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 }

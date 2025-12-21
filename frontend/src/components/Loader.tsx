@@ -27,14 +27,6 @@ const pulseAnimation = keyframes`
   }
 `
 
-const shimmerAnimation = keyframes`
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-`
 
 const sizeMap = {
   small: 40,
@@ -64,69 +56,69 @@ const StyledContainer = styled(Box)<{ fullScreen: boolean }>(({ fullScreen }) =>
   }),
 }))
 
-const CircularLoaderContainer = styled(Box)(({ theme }) => ({
-  position: 'relative',
-  width: '100%',
-  height: '100%',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
+const CircularLoaderContainer = styled(Box)`
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-  '& .outer-circle': {
-    position: 'absolute',
-    borderRadius: '50%',
-    animation: `${spinAnimation} 2s linear infinite`,
-    background: `conic-gradient(from 0deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main}, ${theme.palette.primary.main})`,
-  },
+  & .outer-circle {
+    position: absolute;
+    border-radius: 50%;
+    animation: ${spinAnimation} 2s linear infinite;
+    background: conic-gradient(from 0deg, #6366f1, #ec4899, #6366f1);
+  }
 
-  '& .middle-circle': {
-    position: 'absolute',
-    borderRadius: '50%',
-    animation: `${spinAnimation} 3s linear infinite reverse`,
-    background: `conic-gradient(from 0deg, ${theme.palette.secondary.main}, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-  },
+  & .middle-circle {
+    position: absolute;
+    border-radius: 50%;
+    animation: ${spinAnimation} 3s linear infinite reverse;
+    background: conic-gradient(from 0deg, #ec4899, #6366f1, #ec4899);
+  }
 
-  '& .inner-circle': {
-    position: 'absolute',
-    borderRadius: '50%',
-    backgroundColor: '#ffffff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    color: theme.palette.primary.main,
-  },
-}))
+  & .inner-circle {
+    position: absolute;
+    border-radius: 50%;
+    background-color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6366f1;
+  }
+`
 
-const SpinnerWrapper = styled(Box)(({ theme }) => ({
-  position: 'relative',
-  '& .spinner': {
-    animation: `${spinAnimation} 1.5s linear infinite`,
-  },
-}))
+const SpinnerWrapper = styled(Box)`
+  position: relative;
+  & .spinner {
+    animation: ${spinAnimation} 1.5s linear infinite;
+  }
+`
 
-const PulseContainer = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  gap: '0.5rem',
-  alignItems: 'center',
-  justifyContent: 'center',
+const PulseContainer = styled(Box)`
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
 
-  '& .pulse-dot': {
-    width: '12px',
-    height: '12px',
-    borderRadius: '50%',
-    background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-    animation: `${pulseAnimation} 1.4s infinite`,
+  & .pulse-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #ec4899);
+    animation: ${pulseAnimation} 1.4s infinite;
 
-    '&:nth-of-type(2)': {
-      animationDelay: '0.2s',
-    },
-    '&:nth-of-type(3)': {
-      animationDelay: '0.4s',
-    },
-  },
-}))
+    &:nth-of-type(2) {
+      animation-delay: 0.2s;
+    }
+    &:nth-of-type(3) {
+      animation-delay: 0.4s;
+    }
+  }
+`
 
 export const Loader: React.FC<LoaderProps> = ({
   size = 'medium',

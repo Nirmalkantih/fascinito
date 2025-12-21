@@ -29,6 +29,7 @@ import { toast } from 'react-toastify'
 import { useWishlist } from '../../contexts/WishlistContext'
 import api from '../../services/api'
 import ProductImageGallery from '../../components/ProductImageGallery'
+import RelatedProducts from '../../components/RelatedProducts'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -1295,6 +1296,9 @@ export default function ProductDetail() {
           </Grid>
         </Grid>
 
+        {/* Related Products Section - Appears First */}
+        {product?.id && <RelatedProducts productId={product.id} limit={6} />}
+
         {/* Tabs for Description & Reviews */}
         <Box sx={{ mt: 6 }}>
           <Tabs
@@ -1327,7 +1331,7 @@ export default function ProductDetail() {
                 <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
                   {userReview ? '✏️ Edit Your Review' : '✍️ Write a Review'}
                 </Typography>
-                
+
                 {userReview && (
                   <Box sx={{ mb: 2, p: 1.5, bgcolor: alpha(theme.palette.info.main, 0.1), borderRadius: 1, border: `1px solid ${alpha(theme.palette.info.main, 0.3)}` }}>
                     <Typography variant="body2" sx={{ color: 'info.main', fontWeight: 600 }}>
@@ -1335,7 +1339,7 @@ export default function ProductDetail() {
                     </Typography>
                   </Box>
                 )}
-                
+
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
                     Rating *
@@ -1383,7 +1387,7 @@ export default function ProductDetail() {
                   >
                     {loadingReviews ? 'Loading...' : submittingReview ? 'Submitting...' : (userReview ? 'Update Review' : 'Submit Review')}
                   </Button>
-                  
+
                   {userReview && (
                     <Button
                       variant="outlined"
