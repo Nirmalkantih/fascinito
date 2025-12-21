@@ -28,6 +28,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useWishlist } from '../../contexts/WishlistContext'
 import api from '../../services/api'
+import ProductImageGallery from '../../components/ProductImageGallery'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -44,26 +45,6 @@ function TabPanel(props: TabPanelProps) {
   )
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
-
-// Helper function to construct proper image URL
-const getImageUrl = (imageUrl: string): string => {
-  if (!imageUrl) return 'https://via.placeholder.com/500x500?text=No+Image'
-
-  // If it's an external URL (starts with http/https), use as-is
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    return imageUrl
-  }
-
-  // If it's a relative path (starts with /), prepend API base URL
-  if (imageUrl.startsWith('/')) {
-    return `${API_BASE_URL}${imageUrl}`
-  }
-
-  // Otherwise assume it's an API path
-  return `${API_BASE_URL}/${imageUrl}`
-}
-
 export default function ProductDetail() {
   const { slug } = useParams()
   const navigate = useNavigate()
@@ -71,10 +52,8 @@ export default function ProductDetail() {
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist()
   const [quantity, setQuantity] = useState(1)
   const [tabValue, setTabValue] = useState(0)
-  const [selectedImage, setSelectedImage] = useState(0)
   const [product, setProduct] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
   // Map of variation ID to selected option
   const [selectedVariations, setSelectedVariations] = useState<Map<number, any>>(new Map())
   // Store the specific variant combination details (price, stock, etc.)
@@ -400,19 +379,6 @@ export default function ProductDetail() {
     )
   }
 
-  // Handler for image loading errors
-  const handleImageError = (imageUrl: string) => {
-    setFailedImages(prev => new Set([...prev, imageUrl]))
-  }
-
-  // Get valid image URL or placeholder
-  const getDisplayImageUrl = (imageUrl: string) => {
-    if (failedImages.has(imageUrl)) {
-      return 'https://via.placeholder.com/500x500?text=Image+Not+Available'
-    }
-    return imageUrl
-  }
-
   // Handler for sharing product
   const handleShare = async () => {
     const productUrl = window.location.href
@@ -557,143 +523,13 @@ export default function ProductDetail() {
         <Grid container spacing={4}>
           {/* Product Images */}
           <Grid item xs={12} md={6}>
-            <Box>
-              {/* Main Image - Show variation image if selected, otherwise product image */}
-              <Card
-                sx={{
-                  mb: 2,
-                  overflow: 'hidden',
-                  borderRadius: 3,
-                  boxShadow: theme.shadows[10],
-                  bgcolor: '#f9f9f9',
-                  position: 'relative'
-                }}
-              >
-                <Box
-                  component="img"
-                  src={
-                    Array.from(selectedVariations.values()).find(v => v?.imageUrl) && Array.from(selectedVariations.values()).find(v => v?.imageUrl)?.imageUrl
-                      ? getDisplayImageUrl(getImageUrl(Array.from(selectedVariations.values()).find(v => v?.imageUrl)?.imageUrl || ''))
-                      : getDisplayImageUrl(
-                          getImageUrl(
-                            product.images?.[selectedImage]?.url ||
-                            product.images?.[selectedImage] ||
-                            ''
-                          )
-                        )
-                  }
-                  alt={product.title || product.name}
-                  onError={(e: any) => {
-                    const currentSrc = e.currentTarget.src
-                    if (!currentSrc.includes('placeholder')) {
-                      handleImageError(currentSrc)
-                    }
-                  }}
-                  sx={{
-                    width: '100%',
-                    height: 450,
-                    objectFit: 'contain',
-                    padding: 2
-                  }}
-                />
-
-                {/* Navigation Arrows for Product Images */}
-                {product.images && product.images.length > 1 && selectedVariations.size === 0 && (
-                  <>
-                    {/* Left Arrow */}
-                    <IconButton
-                      onClick={() => {
-                        setSelectedImage(prev =>
-                          prev === 0 ? product.images.length - 1 : prev - 1
-                        );
-                      }}
-                      sx={{
-                        position: 'absolute',
-                        left: 16,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        bgcolor: alpha(theme.palette.common.white, 0.9),
-                        '&:hover': {
-                          bgcolor: alpha(theme.palette.common.white, 1),
-                          transform: 'translateY(-50%) scale(1.1)'
-                        },
-                        boxShadow: theme.shadows[4],
-                        zIndex: 10,
-                        transition: 'all 0.3s ease'
-                      }}
-                      size="large"
-                    >
-                      <Box
-                        component="span"
-                        sx={{
-                          fontSize: '1.8rem',
-                          fontWeight: 'bold',
-                          color: theme.palette.primary.main,
-                          lineHeight: 1
-                        }}
-                      >
-                        ‹
-                      </Box>
-                    </IconButton>
-
-                    {/* Right Arrow */}
-                    <IconButton
-                      onClick={() => {
-                        setSelectedImage(prev =>
-                          prev === product.images.length - 1 ? 0 : prev + 1
-                        );
-                      }}
-                      sx={{
-                        position: 'absolute',
-                        right: 16,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        bgcolor: alpha(theme.palette.common.white, 0.9),
-                        '&:hover': {
-                          bgcolor: alpha(theme.palette.common.white, 1),
-                          transform: 'translateY(-50%) scale(1.1)'
-                        },
-                        boxShadow: theme.shadows[4],
-                        zIndex: 10,
-                        transition: 'all 0.3s ease'
-                      }}
-                      size="large"
-                    >
-                      <Box
-                        component="span"
-                        sx={{
-                          fontSize: '1.8rem',
-                          fontWeight: 'bold',
-                          color: theme.palette.primary.main,
-                          lineHeight: 1
-                        }}
-                      >
-                        ›
-                      </Box>
-                    </IconButton>
-
-                    {/* Image Counter */}
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        bottom: 16,
-                        right: 16,
-                        bgcolor: alpha(theme.palette.common.black, 0.6),
-                        color: theme.palette.common.white,
-                        px: 2,
-                        py: 0.75,
-                        borderRadius: 1,
-                        fontSize: '0.875rem',
-                        fontWeight: 700,
-                        zIndex: 10
-                      }}
-                    >
-                      {selectedImage + 1} / {product.images.length}
-                    </Box>
-                  </>
-                )}
-              </Card>
-            </Box>
+            <ProductImageGallery
+              images={product.images || []}
+              productName={product.name || product.title}
+              variationImageUrl={Array.from(selectedVariations.values()).find(v => v?.imageUrl)?.imageUrl}
+              mainImageHeight={450}
+              thumbnailSize={80}
+            />
           </Grid>
 
           {/* Product Info */}
