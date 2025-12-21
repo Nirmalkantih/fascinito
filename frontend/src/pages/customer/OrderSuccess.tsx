@@ -10,7 +10,6 @@ import {
   Button,
   Divider,
   Chip,
-  CircularProgress,
   Table,
   TableBody,
   TableCell,
@@ -28,6 +27,7 @@ import {
   Home
 } from '@mui/icons-material'
 import { toast } from 'react-toastify'
+import { Loader } from '../../components/Loader'
 import api from '../../services/api'
 
 interface OrderItem {
@@ -137,11 +137,7 @@ export default function OrderSuccess() {
   }
 
   if (loading) {
-    return (
-      <Container sx={{ py: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '600px' }}>
-        <CircularProgress />
-      </Container>
-    )
+    return <Loader fullScreen text="Loading order confirmation..." />
   }
 
   if (error || !order) {

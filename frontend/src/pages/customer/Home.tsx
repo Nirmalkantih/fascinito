@@ -14,8 +14,7 @@ import {
   IconButton,
   Chip,
   Rating,
-  Paper,
-  Skeleton
+  Paper
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
@@ -30,6 +29,7 @@ import {
   ShoppingCart
 } from '@mui/icons-material'
 import { useWishlist } from '../../contexts/WishlistContext'
+import { Loader } from '../../components/Loader'
 import api from '../../services/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
@@ -876,42 +876,34 @@ export default function Home() {
           </Button>
         </Box>
 
-        <Grid container spacing={3}>
-          {loading ? (
-            Array.from({ length: 4 }).map((_, index) => (
-              <Grid item xs={12} sm={6} md={3} key={index}>
-                <Card sx={{ height: '100%' }}>
-                  <Skeleton variant="rectangular" height={250} />
-                  <CardContent>
-                    <Skeleton variant="text" />
-                    <Skeleton variant="text" width="60%" />
-                  </CardContent>
-                </Card>
+        {loading ? (
+          <Loader size="medium" text="Loading featured products..." />
+        ) : (
+          <Grid container spacing={3}>
+            {featuredProducts.length > 0 ? (
+              featuredProducts.map((product) => (
+                <Grid item xs={12} sm={6} md={3} key={product.id}>
+                  <ProductCard product={product} />
+                </Grid>
+              ))
+            ) : (
+              <Grid item xs={12}>
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="body1" color="text.secondary">
+                    No featured products available
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    onClick={() => navigate('/products')}
+                    sx={{ mt: 2 }}
+                  >
+                    Browse All Products
+                  </Button>
+                </Box>
               </Grid>
-            ))
-          ) : featuredProducts.length > 0 ? (
-            featuredProducts.map((product) => (
-              <Grid item xs={12} sm={6} md={3} key={product.id}>
-                <ProductCard product={product} />
-              </Grid>
-            ))
-          ) : (
-            <Grid item xs={12}>
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <Typography variant="body1" color="text.secondary">
-                  No featured products available
-                </Typography>
-                <Button
-                  variant="contained"
-                  onClick={() => navigate('/products')}
-                  sx={{ mt: 2 }}
-                >
-                  Browse All Products
-                </Button>
-              </Box>
-            </Grid>
-          )}
-        </Grid>
+            )}
+          </Grid>
+        )}
       </Container>
 
       {/* New Collection Section */}
@@ -950,42 +942,34 @@ export default function Home() {
             </Button>
           </Box>
 
-          <Grid container spacing={3}>
-            {loading ? (
-              Array.from({ length: 4 }).map((_, index) => (
-                <Grid item xs={12} sm={6} md={3} key={index}>
-                  <Card sx={{ height: '100%' }}>
-                    <Skeleton variant="rectangular" height={250} />
-                    <CardContent>
-                      <Skeleton variant="text" />
-                      <Skeleton variant="text" width="60%" />
-                    </CardContent>
-                  </Card>
+          {loading ? (
+            <Loader size="medium" text="Loading new collection..." />
+          ) : (
+            <Grid container spacing={3}>
+              {newCollection.length > 0 ? (
+                newCollection.map((product) => (
+                  <Grid item xs={12} sm={6} md={3} key={product.id}>
+                    <ProductCard product={product} />
+                  </Grid>
+                ))
+              ) : (
+                <Grid item xs={12}>
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body1" color="text.secondary">
+                      No new collection products available
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      onClick={() => navigate('/products')}
+                      sx={{ mt: 2 }}
+                    >
+                      Browse All Products
+                    </Button>
+                  </Box>
                 </Grid>
-              ))
-            ) : newCollection.length > 0 ? (
-              newCollection.map((product) => (
-                <Grid item xs={12} sm={6} md={3} key={product.id}>
-                  <ProductCard product={product} />
-                </Grid>
-              ))
-            ) : (
-              <Grid item xs={12}>
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography variant="body1" color="text.secondary">
-                    No new collection products available
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    onClick={() => navigate('/products')}
-                    sx={{ mt: 2 }}
-                  >
-                    Browse All Products
-                  </Button>
-                </Box>
-              </Grid>
-            )}
-          </Grid>
+              )}
+            </Grid>
+          )}
         </Container>
       </Box>
 

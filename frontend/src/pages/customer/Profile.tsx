@@ -9,13 +9,13 @@ import {
   Typography,
   Grid,
   Alert,
-  CircularProgress,
   alpha,
   useTheme,
   Divider
 } from '@mui/material'
 import { Edit as EditIcon, Save as SaveIcon, Cancel as CancelIcon } from '@mui/icons-material'
 import { toast } from 'react-toastify'
+import { Loader } from '../../components/Loader'
 
 interface UserProfile {
   id: number
@@ -102,11 +102,7 @@ export default function Profile() {
   }
 
   if (loading) {
-    return (
-      <Container sx={{ py: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '600px' }}>
-        <CircularProgress />
-      </Container>
-    )
+    return <Loader fullScreen text="Loading profile..." />
   }
 
   if (!user) {

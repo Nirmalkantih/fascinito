@@ -58,4 +58,18 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     // Additional optimized queries for common use cases
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdWithDetails(@Param("id") Long id);
+
+    // Related products - same category, excluding current product
+    @Query("""
+        SELECT p FROM Product p
+        WHERE p.category.id = :categoryId
+        AND p.id != :productId
+        AND p.visibleToCustomers = true
+        AND p.active = true
+        ORDER BY p.id DESC
+        """)
+    List<Product> findRelatedProducts(
+            @Param("categoryId") Long categoryId,
+            @Param("productId") Long productId,
+            Pageable pageable);
 }

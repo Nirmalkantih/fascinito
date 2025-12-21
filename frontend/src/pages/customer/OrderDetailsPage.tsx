@@ -14,7 +14,6 @@ import {
   TableHead,
   TableRow,
   Button,
-  CircularProgress,
   Divider,
   alpha,
   useTheme,
@@ -30,6 +29,7 @@ import {
   LocalAtm
 } from '@mui/icons-material'
 import { toast } from 'react-toastify'
+import { Loader } from '../../components/Loader'
 import api from '../../services/api'
 import OrderStepper from '../../components/OrderStepper'
 import CancelOrderDialog from '../../components/CancelOrderDialog'
@@ -162,11 +162,7 @@ export default function OrderDetailsPage() {
   }
 
   if (loading) {
-    return (
-      <Container maxWidth="lg" sx={{ mt: 4, display: 'flex', justifyContent: 'center', py: 8 }}>
-        <CircularProgress />
-      </Container>
-    )
+    return <Loader fullScreen text="Loading order details..." />
   }
 
   if (!order) {

@@ -4,6 +4,7 @@ import com.fascinito.pos.dto.ApiResponse;
 import com.fascinito.pos.dto.PageResponse;
 import com.fascinito.pos.dto.product.ProductRequest;
 import com.fascinito.pos.dto.product.ProductResponse;
+import com.fascinito.pos.exception.ResourceNotFoundException;
 import com.fascinito.pos.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -235,6 +237,34 @@ public class ProductController {
             return ResponseEntity.status(500).body(new ApiResponse<>(
                     false,
                     "Failed to upload image: " + e.getMessage(),
+                    null,
+                    LocalDateTime.now()
+            ));
+        }
+    }
+
+    /**
+     * Get related products for a specific product (same category)
+     * @param productId Product ID
+     * @param limit Number of related products to return (default: 6)
+     * @return List of related products
+     */
+    @GetMapping("/{productId}/related")
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getRelatedProducts(
+            @PathVariable Long productId,
+            @RequestParam(defaultValue = "6") int limit) {
+        try {
+            List<ProductResponse> relatedProducts = productService.getRelatedProducts(productId, limit);
+            return ResponseEntity.ok(new ApiResponse<>(
+                    true,
+                    "Related products retrieved successfully",
+                    relatedProducts,
+                    LocalDateTime.now()
+            ));
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(404).body(new ApiResponse<>(
+                    false,
+                    e.getMessage(),
                     null,
                     LocalDateTime.now()
             ));

@@ -11,7 +11,6 @@ import {
   TableHead,
   TableRow,
   Chip,
-  CircularProgress,
   Paper,
   Button,
   alpha,
@@ -20,6 +19,7 @@ import {
 import { Visibility as ViewIcon } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { Loader } from '../../components/Loader'
 import api from '../../services/api'
 import PaginationComponent from '../../components/PaginationComponent'
 
@@ -122,11 +122,7 @@ export default function Orders() {
   }
 
   if (loading) {
-    return (
-      <Container sx={{ py: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '600px' }}>
-        <CircularProgress />
-      </Container>
-    )
+    return <Loader fullScreen text="Loading your orders..." />
   }
 
   return (

@@ -19,9 +19,9 @@ import {
   alpha,
   useTheme,
   IconButton,
-  Tooltip,
-  CircularProgress
+  Tooltip
 } from '@mui/material';
+import { Loader } from '../../components/Loader';
 import {
   Search,
   FilterList,
@@ -151,6 +151,10 @@ export default function OrdersEnhanced() {
     },
   ].filter(stat => !stat.adminOnly || isAdmin());
 
+  if (loading) {
+    return <Loader fullScreen text="Loading orders..." />;
+  }
+
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
@@ -167,10 +171,10 @@ export default function OrdersEnhanced() {
         </Typography>
         <Button
           variant="contained"
-          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Refresh />}
+          startIcon={<Refresh />}
           onClick={fetchOrders}
           disabled={loading}
-          sx={{ 
+          sx={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             px: 3,
             py: 1.5,

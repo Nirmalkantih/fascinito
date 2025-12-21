@@ -12,8 +12,7 @@ import {
   Grid,
   alpha,
   useTheme,
-  Paper,
-  CircularProgress
+  Paper
 } from '@mui/material'
 import {
   Add,
@@ -24,6 +23,7 @@ import {
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { Loader } from '../../components/Loader'
 import api from '../../services/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
@@ -163,16 +163,7 @@ export default function Cart() {
   }
 
   if (loading) {
-    return (
-      <Container maxWidth="md">
-        <Box sx={{ textAlign: 'center', py: 10 }}>
-          <CircularProgress />
-          <Typography variant="h6" sx={{ mt: 2 }}>
-            Loading cart...
-          </Typography>
-        </Box>
-      </Container>
-    )
+    return <Loader fullScreen text="Loading your cart..." />
   }
 
   if (cartItems.length === 0) {
