@@ -33,6 +33,8 @@ import { toast } from 'react-toastify'
 import api from '../../services/api'
 import OrderStepper from '../../components/OrderStepper'
 import RefundDialog from '../../components/RefundDialog'
+import invoiceService from '../../services/invoiceService'
+import { Download, Refresh, Email, Description } from '@mui/icons-material'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -114,6 +116,8 @@ export default function AdminOrderDetailsPage() {
   const [order, setOrder] = useState<OrderDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [refundDialogOpen, setRefundDialogOpen] = useState(false)
+  const [invoice, setInvoice] = useState<any>(null)
+  const [invoiceLoading, setInvoiceLoading] = useState(false)
 
   const getImageUrl = (imagePath: string | undefined) => {
     if (!imagePath) {
@@ -130,6 +134,12 @@ export default function AdminOrderDetailsPage() {
     fetchOrderDetails()
   }, [orderId])
 
+  useEffect(() => {
+    if (order) {
+      fetchInvoice()
+    }
+  }, [order?.id])
+
   const fetchOrderDetails = async () => {
     try {
       setLoading(true)
@@ -140,6 +150,19 @@ export default function AdminOrderDetailsPage() {
       toast.error('Failed to load order details')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchInvoice = async () => {
+    try {
+      setInvoiceLoading(true)
+      const data = await invoiceService.getInvoiceByOrderId(parseInt(orderId || '0'))
+      setInvoice(data)
+    } catch (error) {
+      console.error('Error fetching invoice:', error)
+      // Invoice may not exist yet, which is fine
+    } finally {
+      setInvoiceLoading(false)
     }
   }
 
@@ -498,6 +521,141 @@ export default function AdminOrderDetailsPage() {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Invoice Section */}
+      <Paper elevation={0} sx={{ p: 3, mb: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, bgcolor: alpha(theme.palette.info.main, 0.02) }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+          <Description color="info" />
+          <Typography variant="h6" fontWeight="bold">
+            Invoice
+          </Typography>
+        </Box>
+
+        {invoiceLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+            <CircularProgress size={30} />
+          </Box>
+        ) : invoice ? (
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Invoice Number
+              </Typography>
+              <Typography variant="body1" fontWeight="bold">
+                {invoice.invoiceNumber}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Template
+              </Typography>
+              <Typography variant="body1">
+                {invoice.invoiceTemplate?.name || 'Default'}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Generated Date
+              </Typography>
+              <Typography variant="body1">
+                {new Date(invoice.generatedAt).toLocaleDateString()}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Email Status
+              </Typography>
+              <Chip
+                label={invoice.emailSent ? `Sent on ${new Date(invoice.emailSentAt).toLocaleDateString()}` : 'Not sent'}
+                color={invoice.emailSent ? 'success' : 'warning'}
+                size="small"
+                sx={{ mt: 0.5 }}
+              />
+            </Grid>
+          </Grid>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            No invoice generated yet
+          </Typography>
+        )}
+
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          {invoice ? (
+            <>
+              <Button
+                variant="contained"
+                startIcon={<Download />}
+                size="small"
+                onClick={async () => {
+                  try {
+                    await invoiceService.downloadInvoice(invoice.id)
+                    toast.success('Invoice downloaded successfully')
+                  } catch (error) {
+                    console.error('Error downloading invoice:', error)
+                    toast.error('Failed to download invoice')
+                  }
+                }}
+              >
+                Download PDF
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<Refresh />}
+                size="small"
+                onClick={async () => {
+                  try {
+                    await invoiceService.regenerateInvoice(invoice.id)
+                    toast.success('Invoice regenerated successfully')
+                    fetchInvoice()
+                  } catch (error) {
+                    console.error('Error regenerating invoice:', error)
+                    toast.error('Failed to regenerate invoice')
+                  }
+                }}
+              >
+                Regenerate
+              </Button>
+              {!invoice.emailSent && (
+                <Button
+                  variant="outlined"
+                  startIcon={<Email />}
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      await invoiceService.resendInvoiceEmail(invoice.id)
+                      toast.success('Invoice email sent successfully')
+                      fetchInvoice()
+                    } catch (error) {
+                      console.error('Error sending invoice email:', error)
+                      toast.error('Failed to send invoice email')
+                    }
+                  }}
+                >
+                  Send Email
+                </Button>
+              )}
+            </>
+          ) : (
+            <Button
+              variant="contained"
+              startIcon={<Description />}
+              size="small"
+              onClick={async () => {
+                try {
+                  await invoiceService.generateInvoice(parseInt(orderId || '0'))
+                  toast.success('Invoice generated successfully')
+                  fetchInvoice()
+                } catch (error) {
+                  console.error('Error generating invoice:', error)
+                  toast.error('Failed to generate invoice')
+                }
+              }}
+            >
+              Generate Invoice
+            </Button>
+          )}
+        </Box>
+      </Paper>
 
       {/* Order Items */}
       <Paper elevation={0} sx={{ p: 3, mb: 3, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
