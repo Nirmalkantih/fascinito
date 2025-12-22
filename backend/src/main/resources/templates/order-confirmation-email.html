@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .content {
+            background-color: #f8f9fa;
+            padding: 30px;
+            border-bottom: 1px solid #ddd;
+        }
+        .greeting {
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        .order-details {
+            background-color: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+            border-radius: 3px;
+        }
+        .detail-row {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .label {
+            font-weight: bold;
+            color: #667eea;
+        }
+        .button {
+            display: inline-block;
+            background-color: #667eea;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-radius: 0 0 5px 5px;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>✓ Order Confirmed</h1>
+    </div>
+
+    <div class="content">
+        <div class="greeting">
+            <p>Hello <span th:text="${customerName}">Customer</span>,</p>
+            <p>Thank you for your order! We've received it and we're now preparing it for shipment. Below are your order details.</p>
+        </div>
+
+        <div class="order-details">
+            <div class="detail-row">
+                <span class="label">Order Number:</span>
+                <span th:text="${orderNumber}">ORD-2025-00001</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Order Date:</span>
+                <span th:text="${#temporals.format(createdDate, 'dd-MMM-yyyy HH:mm')}">01-Jan-2025 10:30 AM</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Items Count:</span>
+                <span th:text="${itemCount}">3</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Total Amount:</span>
+                <span style="font-weight: bold; color: #667eea;" th:text="'₹' + ${#numbers.formatDecimal(totalAmount, 1, 2)}">₹0.00</span>
+            </div>
+        </div>
+
+        <p>We will notify you with tracking information as soon as your order ships. You can check your order status anytime by logging into your account.</p>
+
+        <a href="#" class="button">View Order Status</a>
+    </div>
+
+    <div class="footer">
+        <p>If you have any questions about your order, please don't hesitate to contact us.</p>
+        <p>📧 support@fascinito.in | 📞 +91 XXXXXXXXXX</p>
+        <p style="margin-top: 15px;">Happy shopping! | © 2025 Fascinito. All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>

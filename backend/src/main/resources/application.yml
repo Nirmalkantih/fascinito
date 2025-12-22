@@ -38,6 +38,32 @@ spring:
       write-dates-as-timestamps: false
     time-zone: UTC
 
+  # Email Configuration
+  mail:
+    host: ${MAIL_HOST:smtp.hostinger.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:noreply@fascinito.in}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    default-encoding: UTF-8
+
+  # Thymeleaf Configuration
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+    cache: false
+    encoding: UTF-8
+
 server:
   port: ${SERVER_PORT:8080}
   servlet:
@@ -78,6 +104,15 @@ razorpay:
   key-id: ${RAZORPAY_KEY_ID:rzp_test_your_key_id}
   key-secret: ${RAZORPAY_KEY_SECRET:your_key_secret}
   currency: ${RAZORPAY_CURRENCY:INR}
+
+# Custom App Configuration
+app:
+  mail:
+    from: "Fascinito <noreply@fascinito.in>"
+    admin: ${ADMIN_EMAIL:admin@fascinito.in}
+  invoice:
+    upload-path: ${UPLOAD_BASE_PATH:uploads}/invoices
+    base-url: ${API_BASE_URL:http://localhost:8080}
 
 logging:
   level:

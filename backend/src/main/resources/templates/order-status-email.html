@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .content {
+            background-color: #f8f9fa;
+            padding: 30px;
+            border-bottom: 1px solid #ddd;
+        }
+        .status-badge {
+            display: inline-block;
+            background-color: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 20px 0;
+            font-size: 16px;
+        }
+        .order-details {
+            background-color: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+            border-radius: 3px;
+        }
+        .detail-row {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .label {
+            font-weight: bold;
+            color: #667eea;
+        }
+        .timeline {
+            margin: 20px 0;
+            border-left: 3px solid #667eea;
+            padding-left: 20px;
+        }
+        .timeline-item {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 0;
+            width: 12px;
+            height: 12px;
+            background-color: #667eea;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        .timeline-date {
+            font-size: 13px;
+            color: #666;
+            font-weight: bold;
+        }
+        .timeline-text {
+            font-size: 14px;
+            color: #333;
+            margin-top: 5px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #667eea;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-radius: 0 0 5px 5px;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📦 Order Status Update</h1>
+    </div>
+
+    <div class="content">
+        <p>Hello <span th:text="${customerName}">Customer</span>,</p>
+        <p>Your order status has been updated. Check the details below:</p>
+
+        <div class="status-badge" th:text="${status}">SHIPPED</div>
+
+        <div class="order-details">
+            <div class="detail-row">
+                <span class="label">Order Number:</span>
+                <span th:text="${orderNumber}">ORD-2025-00001</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Current Status:</span>
+                <span th:text="${status}">SHIPPED</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Updated At:</span>
+                <span th:text="${#temporals.format(statusDate, 'dd-MMM-yyyy HH:mm')}">01-Jan-2025 10:30 AM</span>
+            </div>
+        </div>
+
+        <h3 style="margin-top: 20px;">What happens next?</h3>
+        <div class="timeline">
+            <div class="timeline-item">
+                <div class="timeline-date">Current</div>
+                <div class="timeline-text" th:text="${status}">Shipped</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-date">Next</div>
+                <div class="timeline-text">In Transit - You'll receive tracking details soon</div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-date">Final</div>
+                <div class="timeline-text">Delivered - We'll notify you when it arrives</div>
+            </div>
+        </div>
+
+        <a href="#" class="button">Track Your Order</a>
+    </div>
+
+    <div class="footer">
+        <p>Have questions? We're here to help!</p>
+        <p>📧 support@fascinito.in | 📞 +91 XXXXXXXXXX</p>
+        <p style="margin-top: 15px;">© 2025 Fascinito. All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>
