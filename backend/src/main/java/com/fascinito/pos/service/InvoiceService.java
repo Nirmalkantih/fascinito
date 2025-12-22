@@ -9,6 +9,7 @@ import com.fascinito.pos.exception.BadRequestException;
 import com.fascinito.pos.exception.ResourceNotFoundException;
 import com.fascinito.pos.repository.InvoiceRepository;
 import com.fascinito.pos.repository.OrderRepository;
+import com.fascinito.pos.repository.InvoiceTemplateRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -36,6 +37,7 @@ public class InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
     private final OrderRepository orderRepository;
+    private final InvoiceTemplateRepository invoiceTemplateRepository;
     private final InvoiceTemplateService invoiceTemplateService;
     private final TemplateEngine templateEngine;
     private final AppConfig appConfig;
@@ -254,13 +256,8 @@ public class InvoiceService {
     }
 
     private InvoiceTemplate getInvoiceTemplateById(Long templateId) {
-        try {
-            invoiceTemplateService.getTemplateById(templateId);
-            return new InvoiceTemplate();
-            // This would fetch the actual template
-        } catch (Exception e) {
-            throw new ResourceNotFoundException("Template not found");
-        }
+        return invoiceTemplateRepository.findById(templateId)
+                .orElseThrow(() -> new ResourceNotFoundException("Template not found with id: " + templateId));
     }
 
     private InvoiceResponse mapToResponse(Invoice invoice, Order order) {
