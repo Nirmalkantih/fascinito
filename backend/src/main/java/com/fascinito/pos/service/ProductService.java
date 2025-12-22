@@ -371,12 +371,11 @@ public class ProductService {
 
         // Generate variant combinations after variations are set and persisted
         if (product.getId() != null) {
-            // For updates: delete old combinations via repository directly (not via entity)
-            // This avoids stale object state issues with cascade deletion
-            variantCombinationRepository.deleteByProductId(product.getId());
-            // Flush to ensure deletion completes before generating new combinations
+            // For updates: deactivate old combinations instead of deleting them
+            // This preserves referential integrity with order_items that reference these combinations
+            variantCombinationRepository.deactivateByProductId(product.getId());
             entityManager.flush();
-            log.info("Deleted old variant combinations for product {}", product.getId());
+            log.info("Deactivated old variant combinations for product {}", product.getId());
         }
         generateVariantCombinations(product);
 

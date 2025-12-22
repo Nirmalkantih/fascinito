@@ -50,4 +50,11 @@ public interface ProductVariantCombinationRepository extends JpaRepository<Produ
     @Modifying
     @Query("DELETE FROM ProductVariantCombination pvc WHERE pvc.product.id = :productId")
     void deleteByProductId(@Param("productId") Long productId);
+
+    /**
+     * Deactivate all combinations for a product (safer than deletion when referenced by orders)
+     */
+    @Modifying
+    @Query("UPDATE ProductVariantCombination pvc SET pvc.active = false WHERE pvc.product.id = :productId")
+    void deactivateByProductId(@Param("productId") Long productId);
 }
