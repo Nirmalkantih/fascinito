@@ -122,7 +122,11 @@ export default function Orders() {
   }
 
   if (loading) {
-    return <Loader fullScreen text="Loading your orders..." />
+    return (
+      <Container maxWidth="lg" sx={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader size="medium" variant="circular" text="Loading your orders..." />
+      </Container>
+    )
   }
 
   return (

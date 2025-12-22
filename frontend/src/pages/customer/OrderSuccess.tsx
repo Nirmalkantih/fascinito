@@ -137,7 +137,11 @@ export default function OrderSuccess() {
   }
 
   if (loading) {
-    return <Loader fullScreen text="Loading order confirmation..." />
+    return (
+      <Container maxWidth="md" sx={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader size="medium" variant="circular" text="Loading order confirmation..." />
+      </Container>
+    )
   }
 
   if (error || !order) {

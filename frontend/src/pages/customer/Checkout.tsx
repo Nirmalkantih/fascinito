@@ -378,7 +378,11 @@ export default function Checkout() {
   }
 
   if (loading) {
-    return <Loader fullScreen text="Loading checkout..." />
+    return (
+      <Container maxWidth="md" sx={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader size="medium" variant="circular" text="Loading checkout..." />
+      </Container>
+    )
   }
 
   if (!cartData || cartData.items.length === 0) {

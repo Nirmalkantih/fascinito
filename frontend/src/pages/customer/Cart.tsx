@@ -163,7 +163,11 @@ export default function Cart() {
   }
 
   if (loading) {
-    return <Loader fullScreen text="Loading your cart..." />
+    return (
+      <Container maxWidth="md" sx={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader size="medium" variant="circular" text="Loading your cart..." />
+      </Container>
+    )
   }
 
   if (cartItems.length === 0) {

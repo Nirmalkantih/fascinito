@@ -5,6 +5,7 @@ import styled from '@emotion/styled'
 interface LoaderProps {
   size?: 'small' | 'medium' | 'large'
   fullScreen?: boolean
+  centered?: boolean
   text?: string
   variant?: 'circular' | 'spinner' | 'pulse'
 }
@@ -34,7 +35,7 @@ const sizeMap = {
   large: 80,
 }
 
-const StyledContainer = styled(Box)<{ fullScreen: boolean }>(({ fullScreen }) => ({
+const StyledContainer = styled(Box)<{ fullScreen: boolean; centered?: boolean }>(({ fullScreen, centered }) => ({
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
@@ -46,11 +47,16 @@ const StyledContainer = styled(Box)<{ fullScreen: boolean }>(({ fullScreen }) =>
     left: 0,
     width: '100%',
     height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    backdropFilter: 'blur(4px)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(8px)',
     zIndex: 9999,
   }),
-  ...(!fullScreen && {
+  ...(centered && !fullScreen && {
+    padding: '3rem 2rem',
+    minHeight: 'auto',
+    backgroundColor: 'transparent',
+  }),
+  ...(!fullScreen && !centered && {
     padding: '2rem',
     minHeight: '200px',
   }),
@@ -123,13 +129,14 @@ const PulseContainer = styled(Box)`
 export const Loader: React.FC<LoaderProps> = ({
   size = 'medium',
   fullScreen = false,
+  centered = false,
   text = 'Loading...',
   variant = 'circular',
 }) => {
   const loaderSize = sizeMap[size]
 
   return (
-    <StyledContainer fullScreen={fullScreen}>
+    <StyledContainer fullScreen={fullScreen} centered={centered}>
       {variant === 'circular' && (
         <CircularLoaderContainer sx={{ width: loaderSize, height: loaderSize }}>
           <Box

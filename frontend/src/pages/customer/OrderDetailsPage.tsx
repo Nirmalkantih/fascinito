@@ -162,7 +162,11 @@ export default function OrderDetailsPage() {
   }
 
   if (loading) {
-    return <Loader fullScreen text="Loading order details..." />
+    return (
+      <Container maxWidth="lg" sx={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader size="medium" variant="circular" text="Loading order details..." />
+      </Container>
+    )
   }
 
   if (!order) {

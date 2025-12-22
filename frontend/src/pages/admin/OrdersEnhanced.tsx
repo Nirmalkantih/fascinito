@@ -152,7 +152,11 @@ export default function OrdersEnhanced() {
   ].filter(stat => !stat.adminOnly || isAdmin());
 
   if (loading) {
-    return <Loader fullScreen text="Loading orders..." />;
+    return (
+      <Box sx={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader size="medium" variant="circular" text="Loading orders..." />
+      </Box>
+    );
   }
 
   return (

@@ -102,7 +102,11 @@ export default function Profile() {
   }
 
   if (loading) {
-    return <Loader fullScreen text="Loading profile..." />
+    return (
+      <Container maxWidth="md" sx={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader size="medium" variant="circular" text="Loading profile..." />
+      </Container>
+    )
   }
 
   if (!user) {
