@@ -19,10 +19,6 @@ import {
   Chip,
   IconButton,
   CircularProgress,
-  Alert,
-  Grid,
-  Card,
-  CardContent,
   Select,
   MenuItem,
   FormControlLabel,
@@ -31,7 +27,7 @@ import {
   alpha,
   Pagination
 } from '@mui/material'
-import { Edit, Delete, Add, Download, Visibility } from '@mui/icons-material'
+import { Edit, Delete, Add } from '@mui/icons-material'
 import { toast } from 'react-toastify'
 import invoiceService, { InvoiceTemplate, InvoiceTemplateRequest } from '../../services/invoiceService'
 
@@ -287,7 +283,7 @@ export default function InvoiceTemplates() {
               <Pagination
                 count={totalPages}
                 page={page + 1}
-                onChange={(e, value) => setPage(value - 1)}
+                onChange={(_, value) => setPage(value - 1)}
               />
             </Box>
           )}

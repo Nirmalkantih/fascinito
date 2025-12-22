@@ -13,7 +13,6 @@ import {
   Typography,
   IconButton,
   CircularProgress,
-  TextField,
   useTheme,
   alpha,
   Pagination,
@@ -21,7 +20,9 @@ import {
   CardContent,
   Grid
 } from '@mui/material'
-import { Download, FileText } from '@mui/icons-material'
+import { Download, Description } from '@mui/icons-material'
+// Type cast for icon compatibility
+const FileText = Description
 import { toast } from 'react-toastify'
 import invoiceService, { Invoice } from '../../services/invoiceService'
 
@@ -204,7 +205,7 @@ export default function CustomerInvoices() {
                 <Pagination
                   count={totalPages}
                   page={page + 1}
-                  onChange={(e, value) => setPage(value - 1)}
+                  onChange={(_, value) => setPage(value - 1)}
                 />
               </Box>
             )}

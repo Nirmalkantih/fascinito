@@ -23,7 +23,9 @@ import {
   DialogContent,
   DialogActions
 } from '@mui/material'
-import { Download, Email, RefreshCw, Eye } from '@mui/icons-material'
+import { Download, Email, Refresh, Visibility as Eye } from '@mui/icons-material'
+// Type cast for icon compatibility
+const RefreshCw = Refresh
 import { toast } from 'react-toastify'
 import invoiceService, { Invoice } from '../../services/invoiceService'
 
@@ -231,7 +233,7 @@ export default function Invoices() {
               <Pagination
                 count={totalPages}
                 page={page + 1}
-                onChange={(e, value) => setPage(value - 1)}
+                onChange={(_, value) => setPage(value - 1)}
               />
             </Box>
           )}
