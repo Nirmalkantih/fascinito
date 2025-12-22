@@ -32,6 +32,9 @@ import AdminOrderDetails from './pages/admin/OrderDetailsPage'
 import AdminCustomers from './pages/admin/CustomersEnhanced'
 import AdminStaff from './pages/admin/Staff'
 import AdminReports from './pages/admin/ReportsEnhanced'
+import InvoiceTemplates from './pages/admin/InvoiceTemplates'
+import AdminInvoices from './pages/admin/Invoices'
+import CustomerInvoices from './pages/customer/Invoices'
 
 function App() {
   const { isAuthenticated, user, loading } = useAuth()
@@ -119,6 +122,10 @@ function App() {
           path="settings"
           element={isAuthenticated ? <Settings /> : <Navigate to="/login" />}
         />
+        <Route
+          path="invoices"
+          element={isAuthenticated ? <CustomerInvoices /> : <Navigate to="/login" />}
+        />
       </Route>
 
       {/* Admin Portal */}
@@ -145,6 +152,8 @@ function App() {
         <Route path="customers" element={<ProtectedRoute requiredPermission="view_customers"><AdminCustomers /></ProtectedRoute>} />
         <Route path="staff" element={<ProtectedRoute requiredPermission="view_staff"><AdminStaff /></ProtectedRoute>} />
         <Route path="reports" element={<ProtectedRoute requiredPermission="view_reports"><AdminReports /></ProtectedRoute>} />
+        <Route path="invoice-templates" element={<ProtectedRoute requiredPermission="view_invoices"><InvoiceTemplates /></ProtectedRoute>} />
+        <Route path="invoices" element={<ProtectedRoute requiredPermission="view_invoices"><AdminInvoices /></ProtectedRoute>} />
       </Route>
 
       {/* Catch all */}

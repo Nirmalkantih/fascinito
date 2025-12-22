@@ -17,6 +17,8 @@ export type Permission =
   | 'manage_staff'
   | 'view_orders'
   | 'manage_orders'
+  | 'view_invoices'
+  | 'manage_invoices'
   | 'view_analytics'
   | 'view_reports';
 
@@ -42,6 +44,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'manage_staff',
     'view_orders',
     'manage_orders',
+    'view_invoices',
+    'manage_invoices',
     'view_analytics',
     'view_reports',
   ],
@@ -58,6 +62,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'view_locations',
     'view_orders',
     'manage_orders',
+    'view_invoices',
   ],
   ROLE_CUSTOMER: [],
 };
@@ -79,6 +84,8 @@ export const ADMIN_MENU_ITEMS: MenuItem[] = [
   { name: 'Locations', path: '/admin/locations', requiredPermission: 'view_locations' },
   { name: 'Staff', path: '/admin/staff', requiredPermission: 'view_staff' },
   { name: 'Orders', path: '/admin/orders', requiredPermission: 'view_orders' },
+  { name: 'Invoice Templates', path: '/admin/invoice-templates', requiredPermission: 'view_invoices' },
+  { name: 'Invoices', path: '/admin/invoices', requiredPermission: 'view_invoices' },
   { name: 'Analytics', path: '/admin/analytics', requiredPermission: 'view_analytics' },
   { name: 'Reports', path: '/admin/reports', requiredPermission: 'view_reports' },
 ];
