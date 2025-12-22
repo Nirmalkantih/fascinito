@@ -26,13 +26,13 @@ public class InvoiceController {
     @GetMapping("/order/{orderId}")
     public ResponseEntity<ApiResponse<InvoiceResponse>> getInvoiceByOrderId(@PathVariable Long orderId) {
         InvoiceResponse invoice = invoiceService.getInvoiceByOrderId(orderId);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Invoice retrieved", invoice));
+        return ResponseEntity.ok(ApiResponse.success("Invoice retrieved", invoice));
     }
 
     @GetMapping("/{invoiceId}")
     public ResponseEntity<ApiResponse<InvoiceResponse>> getInvoiceById(@PathVariable Long invoiceId) {
         InvoiceResponse invoice = invoiceService.getInvoiceById(invoiceId);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Invoice retrieved", invoice));
+        return ResponseEntity.ok(ApiResponse.success("Invoice retrieved", invoice));
     }
 
     @GetMapping("/my-invoices")
@@ -66,21 +66,21 @@ public class InvoiceController {
     ) {
         InvoiceResponse invoice = invoiceService.generateInvoice(orderId, templateId);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponse<>(true, "Invoice generated successfully", invoice));
+                .body(ApiResponse.success("Invoice generated successfully", invoice));
     }
 
     @PostMapping("/{invoiceId}/regenerate")
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
     public ResponseEntity<ApiResponse<InvoiceResponse>> regenerateInvoice(@PathVariable Long invoiceId) {
         InvoiceResponse invoice = invoiceService.regenerateInvoice(invoiceId);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Invoice regenerated successfully", invoice));
+        return ResponseEntity.ok(ApiResponse.success("Invoice regenerated successfully", invoice));
     }
 
     @PostMapping("/{invoiceId}/resend-email")
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
     public ResponseEntity<ApiResponse<String>> resendInvoiceEmail(@PathVariable Long invoiceId) {
         emailService.sendInvoiceEmail(invoiceId);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Invoice email sent successfully", "Email is being sent"));
+        return ResponseEntity.ok(ApiResponse.success("Invoice email sent successfully", "Email is being sent"));
     }
 
     @GetMapping("/admin/all")

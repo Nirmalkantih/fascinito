@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        
+        .content {
+            margin-bottom: 20px;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #667eea;
+        }
+        
+        .section h2 {
+            color: #667eea;
+            font-size: 18px;
+            margin-top: 0;
+        }
+        
+        .order-info {
+            display: inline-block;
+            width: 48%;
+            vertical-align: top;
+            margin-right: 2%;
+        }
+        
+        .order-info-item {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .order-info-item strong {
+            color: #333;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        .items-table th {
+            background-color: #667eea;
+            color: white;
+            padding: 10px;
+            text-align: left;
+            font-size: 13px;
+        }
+        
+        .items-table td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+        
+        .items-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .price-cell {
+            text-align: right;
+        }
+        
+        .summary {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .summary-row.total {
+            font-weight: bold;
+            font-size: 16px;
+            color: #667eea;
+            border-top: 2px solid #ccc;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background-color: #667eea;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        
+        .cta-button:hover {
+            background-color: #5568d3;
+        }
+        
+        .footer {
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+        
+        .footer p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>Order Confirmed! 🎉</h1>
+        </div>
+
+        <div class="content">
+            <p>Hi <span th:text="${customer.firstName}">Customer</span>,</p>
+            <p>Thank you for your order! We're excited to process your purchase. Below are your order details.</p>
+
+            <div class="section">
+                <h2>Order Information</h2>
+                <div class="order-info">
+                    <div class="order-info-item">
+                        <strong>Order Number:</strong><br/>
+                        <span th:text="${order.orderNumber}">ORD-001</span>
+                    </div>
+                    <div class="order-info-item">
+                        <strong>Order Date:</strong><br/>
+                        <span th:text="${#temporals.format(order.createdAt, 'dd-MMM-yyyy HH:mm')}">01-Jan-2025 10:00</span>
+                    </div>
+                </div>
+                <div class="order-info">
+                    <div class="order-info-item">
+                        <strong>Order Status:</strong><br/>
+                        <span th:text="${order.status}">PENDING</span>
+                    </div>
+                    <div class="order-info-item">
+                        <strong>Total Amount:</strong><br/>
+                        <span style="font-size: 18px; color: #667eea; font-weight: bold;">₹<span th:text="${#numbers.formatDecimal(order.totalAmount, 1, 2)}">1000.00</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Items Ordered</h2>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th style="text-align: center;">Qty</th>
+                            <th class="price-cell">Price</th>
+                            <th class="price-cell">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="item : ${orderItems}">
+                            <td th:text="${item.product.title}">Product Name</td>
+                            <td style="text-align: center;" th:text="${item.quantity}">1</td>
+                            <td class="price-cell">₹<span th:text="${#numbers.formatDecimal(item.unitPrice, 1, 2)}">99.99</span></td>
+                            <td class="price-cell">₹<span th:text="${#numbers.formatDecimal(item.totalPrice, 1, 2)}">99.99</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="summary">
+                    <div class="summary-row">
+                        <span>Subtotal:</span>
+                        <span>₹<span th:text="${#numbers.formatDecimal(order.subtotal, 1, 2)}">1000.00</span></span>
+                    </div>
+                    <div class="summary-row" th:if="${order.taxAmount > 0}">
+                        <span>Tax:</span>
+                        <span>₹<span th:text="${#numbers.formatDecimal(order.taxAmount, 1, 2)}">100.00</span></span>
+                    </div>
+                    <div class="summary-row" th:if="${order.shippingCost > 0}">
+                        <span>Shipping:</span>
+                        <span>₹<span th:text="${#numbers.formatDecimal(order.shippingCost, 1, 2)}">50.00</span></span>
+                    </div>
+                    <div class="summary-row" th:if="${order.discount > 0}">
+                        <span>Discount:</span>
+                        <span>-₹<span th:text="${#numbers.formatDecimal(order.discount, 1, 2)}">50.00</span></span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Total:</span>
+                        <span>₹<span th:text="${#numbers.formatDecimal(order.totalAmount, 1, 2)}">1100.00</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="#" class="cta-button">View Your Order</a>
+            </div>
+
+            <div class="section">
+                <h2>What's Next?</h2>
+                <p>Your order will be processed and you'll receive a shipping notification once it's on the way. Keep your order number handy for tracking and customer support.</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© 2025 Fascinito. All rights reserved.</p>
+            <p>If you have any questions, please contact us at support@fascinito.in</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -49,13 +49,13 @@ public class InvoiceTemplateController {
     @GetMapping("/active")
     public ResponseEntity<ApiResponse<List<InvoiceTemplateResponse>>> getActiveTemplates() {
         List<InvoiceTemplateResponse> templates = invoiceTemplateService.getActiveTemplates();
-        return ResponseEntity.ok(new ApiResponse<>(true, "Active templates retrieved", templates));
+        return ResponseEntity.ok(ApiResponse.success("Active templates retrieved", templates));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<InvoiceTemplateResponse>> getTemplateById(@PathVariable Long id) {
         InvoiceTemplateResponse template = invoiceTemplateService.getTemplateById(id);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Template retrieved", template));
+        return ResponseEntity.ok(ApiResponse.success("Template retrieved", template));
     }
 
     @PostMapping
@@ -66,7 +66,7 @@ public class InvoiceTemplateController {
         String createdBy = "SYSTEM"; // In real implementation, get from security context
         InvoiceTemplateResponse template = invoiceTemplateService.createTemplate(request, createdBy);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponse<>(true, "Template created successfully", template));
+                .body(ApiResponse.success("Template created successfully", template));
     }
 
     @PutMapping("/{id}")
@@ -77,14 +77,14 @@ public class InvoiceTemplateController {
     ) {
         String updatedBy = "SYSTEM"; // In real implementation, get from security context
         InvoiceTemplateResponse template = invoiceTemplateService.updateTemplate(id, request, updatedBy);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Template updated successfully", template));
+        return ResponseEntity.ok(ApiResponse.success("Template updated successfully", template));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteTemplate(@PathVariable Long id) {
         invoiceTemplateService.deleteTemplate(id);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Template deleted successfully", null));
+        return ResponseEntity.ok(ApiResponse.success("Template deleted successfully", null));
     }
 
     @GetMapping("/search")

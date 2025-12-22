@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.6;
+            background-color: #f5f5f5;
+        }
+        
+        .invoice-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 40px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 20px;
+        }
+        
+        .logo img {
+            max-width: 150px;
+            height: auto;
+        }
+        
+        .company-name {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .invoice-title {
+            text-align: right;
+        }
+        
+        .invoice-title h1 {
+            font-size: 36px;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .invoice-number {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .invoice-details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+        }
+        
+        .details-section {
+            flex: 1;
+        }
+        
+        .details-section h3 {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .details-section p {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .banner {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .banner img {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #333;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        
+        tr:last-child td {
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .amount {
+            text-align: right;
+            font-weight: bold;
+        }
+        
+        .summary-table {
+            width: 50%;
+            margin-left: auto;
+            margin-bottom: 30px;
+        }
+        
+        .summary-table th {
+            background-color: transparent;
+            border: none;
+            padding: 8px 12px;
+            text-align: left;
+            text-transform: none;
+        }
+        
+        .summary-table td {
+            padding: 8px 12px;
+            border: none;
+        }
+        
+        .summary-table tr:last-child {
+            border-top: 2px solid #667eea;
+            border-bottom: none;
+        }
+        
+        .summary-table tr:last-child td {
+            font-size: 16px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .payment-info {
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #667eea;
+        }
+        
+        .payment-info h4 {
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        
+        .payment-info p {
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+        
+        .footer {
+            border-top: 2px solid #ddd;
+            padding-top: 20px;
+            margin-top: 40px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .footer p {
+            margin-bottom: 10px;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .qty-col, .price-col, .tax-col, .total-col {
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo" th:if="${template != null && template.logoUrl}">
+                <img th:src="${template.logoUrl}" alt="Logo" />
+            </div>
+            <div th:if="${template == null || !template.logoUrl}" class="company-name">
+                Fascinito
+            </div>
+            <div class="invoice-title">
+                <h1>INVOICE</h1>
+                <div class="invoice-number">
+                    <p><strong>Invoice #:</strong> <span th:text="${invoice.invoiceNumber}">INV-2025-00001</span></p>
+                    <p><strong>Order #:</strong> <span th:text="${order.orderNumber}">ORD-001</span></p>
+                    <p><strong>Date:</strong> <span th:text="${#temporals.format(invoice.generatedAt, 'dd-MMM-yyyy')}">01-Jan-2025</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Festival Banner -->
+        <div class="banner" th:if="${template != null && template.showFestivalBanner && template.bannerUrl}">
+            <img th:src="${template.bannerUrl}" alt="Festival Banner" />
+        </div>
+
+        <!-- Invoice Details -->
+        <div class="invoice-details">
+            <div class="details-section">
+                <h3>Bill To</h3>
+                <p th:text="${customer.firstName + ' ' + customer.lastName}">Customer Name</p>
+                <p th:if="${customer.email}" th:text="${customer.email}">email@example.com</p>
+                <p th:text="${customer.phone}">+91 XXXX XXXX XX</p>
+            </div>
+            <div class="details-section">
+                <h3>Shipping Address</h3>
+                <p th:text="${order.shippingAddress}">Shipping Address</p>
+            </div>
+        </div>
+
+        <!-- Order Items Table -->
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th class="qty-col">Quantity</th>
+                    <th class="price-col">Unit Price</th>
+                    <th class="tax-col">Tax</th>
+                    <th class="total-col">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="item : ${order.items}">
+                    <td th:text="${item.product.title}">Product Name</td>
+                    <td class="qty-col" th:text="${item.quantity}">1</td>
+                    <td class="price-col">₹<span th:text="${#numbers.formatDecimal(item.unitPrice, 1, 2)}">99.99</span></td>
+                    <td class="tax-col">₹<span th:text="${#numbers.formatDecimal(item.taxAmount, 1, 2)}">9.99</span></td>
+                    <td class="total-col amount">₹<span th:text="${#numbers.formatDecimal(item.totalPrice, 1, 2)}">109.99</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Order Summary -->
+        <table class="summary-table">
+            <tr>
+                <th>Subtotal:</th>
+                <td class="amount">₹<span th:text="${#numbers.formatDecimal(order.subtotal, 1, 2)}">1000.00</span></td>
+            </tr>
+            <tr>
+                <th>Tax:</th>
+                <td class="amount">₹<span th:text="${#numbers.formatDecimal(order.taxAmount, 1, 2)}">100.00</span></td>
+            </tr>
+            <tr th:if="${order.shippingCost > 0}">
+                <th>Shipping:</th>
+                <td class="amount">₹<span th:text="${#numbers.formatDecimal(order.shippingCost, 1, 2)}">50.00</span></td>
+            </tr>
+            <tr th:if="${order.discount > 0}">
+                <th>Discount:</th>
+                <td class="amount">-₹<span th:text="${#numbers.formatDecimal(order.discount, 1, 2)}">50.00</span></td>
+            </tr>
+            <tr>
+                <th>Total Amount:</th>
+                <td class="amount">₹<span th:text="${#numbers.formatDecimal(order.totalAmount, 1, 2)}">1100.00</span></td>
+            </tr>
+        </table>
+
+        <!-- Payment Info -->
+        <div class="payment-info">
+            <h4>Payment Information</h4>
+            <p><strong>Payment Method:</strong> <span th:text="${payment.paymentMethod}">Credit Card</span></p>
+            <p th:if="${payment.transactionId}"><strong>Transaction ID:</strong> <span th:text="${payment.transactionId}">TXN123456</span></p>
+            <p><strong>Payment Status:</strong> <span th:text="${payment.status}">COMPLETED</span></p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p th:if="${template != null && template.footerNote}" th:text="${template.footerNote}">Thank you for your purchase!</p>
+            <p th:if="${template == null}">Thank you for shopping with Fascinito!</p>
+            <p>For any queries, please contact us at support@fascinito.in</p>
+        </div>
+    </div>
+</body>
+</html>

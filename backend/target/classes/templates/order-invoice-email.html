@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .content {
+            background-color: #f8f9fa;
+            padding: 30px;
+            border-bottom: 1px solid #ddd;
+        }
+        .invoice-details {
+            background-color: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+            border-radius: 3px;
+        }
+        .detail-row {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .label {
+            font-weight: bold;
+            color: #667eea;
+        }
+        .download-button {
+            display: inline-block;
+            background-color: #667eea;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-radius: 0 0 5px 5px;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📄 Your Invoice is Ready</h1>
+    </div>
+
+    <div class="content">
+        <p>Hello <span th:text="${customerName}">Customer</span>,</p>
+        <p>Your invoice for order <strong th:text="${orderNumber}">ORD-2025-00001</strong> is now ready! We've attached the PDF invoice to this email.</p>
+
+        <div class="invoice-details">
+            <div class="detail-row">
+                <span class="label">Invoice Number:</span>
+                <span th:text="${invoiceNumber}">INV-2025-00001</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Order Number:</span>
+                <span th:text="${orderNumber}">ORD-2025-00001</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Generated Date:</span>
+                <span th:text="${#temporals.format(generatedDate, 'dd-MMM-yyyy')}">01-Jan-2025</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Total Amount:</span>
+                <span style="font-weight: bold; color: #667eea;" th:text="'₹' + ${#numbers.formatDecimal(totalAmount, 1, 2)}">₹0.00</span>
+            </div>
+        </div>
+
+        <p><strong>What's included in the PDF:</strong></p>
+        <ul>
+            <li>Complete itemized list of your purchase</li>
+            <li>Tax and shipping details</li>
+            <li>Payment information</li>
+            <li>Billing and shipping address</li>
+        </ul>
+
+        <p>You can download the invoice from the email attachment or access it anytime from your account dashboard.</p>
+    </div>
+
+    <div class="footer">
+        <p>If you have any questions about your invoice or order, please contact us.</p>
+        <p>📧 support@fascinito.in | 📞 +91 XXXXXXXXXX</p>
+        <p style="margin-top: 15px;">© 2025 Fascinito. All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>
