@@ -13,8 +13,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,13 +24,23 @@ public class InvoiceTemplateService {
     private final InvoiceTemplateRepository templateRepository;
 
     @Transactional(readOnly = true)
-    public Page<InvoiceTemplateResponse> getAllTemplates(Pageable pageable, String search) {
-        if (search != null && !search.isEmpty()) {
-            return templateRepository.search(search, pageable)
-                    .map(this::mapToResponse);
-        }
+    public List<InvoiceTemplateResponse> getAllTemplates() {
+        return templateRepository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<InvoiceTemplateResponse> getAllTemplatesPaginated(Pageable pageable) {
         return templateRepository.findAll(pageable)
                 .map(this::mapToResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public List<InvoiceTemplateResponse> getActiveTemplates() {
+        return templateRepository.findAllActive().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -41,32 +51,17 @@ public class InvoiceTemplateService {
     }
 
     @Transactional(readOnly = true)
-    public InvoiceTemplateResponse getTemplateByTemplateId(String templateId) {
-        InvoiceTemplate template = templateRepository.findByTemplateId(templateId)
-                .orElseThrow(() -> new ResourceNotFoundException("Invoice template not found with templateId: " + templateId));
+    public InvoiceTemplateResponse getActiveTemplateByType(InvoiceTemplate.TemplateType type) {
+        InvoiceTemplate template = templateRepository.findActiveByType(type)
+                .orElseThrow(() -> new ResourceNotFoundException("No active invoice template found for type: " + type));
         return mapToResponse(template);
-    }
-
-    @Transactional(readOnly = true)
-    public InvoiceTemplateResponse getActiveTemplateByType(InvoiceTemplate.TemplateType templateType) {
-        InvoiceTemplate template = templateRepository.findActiveByType(templateType)
-                .orElse(null);
-        return template != null ? mapToResponse(template) : null;
-    }
-
-    @Transactional(readOnly = true)
-    public List<InvoiceTemplateResponse> getAllActiveTemplates() {
-        return templateRepository.findAllActive()
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
     }
 
     @Transactional
     public InvoiceTemplateResponse createTemplate(InvoiceTemplateRequest request, String createdBy) {
-        // Validate that templateId is unique
+        // Check if templateId is unique
         if (templateRepository.existsByTemplateId(request.getTemplateId())) {
-            throw new BadRequestException("Template with templateId '" + request.getTemplateId() + "' already exists");
+            throw new BadRequestException("Template ID '" + request.getTemplateId() + "' already exists");
         }
 
         InvoiceTemplate template = InvoiceTemplate.builder()
@@ -75,18 +70,17 @@ public class InvoiceTemplateService {
                 .description(request.getDescription())
                 .templateType(request.getTemplateType())
                 .subject(request.getSubject())
-                .headerColor(request.getHeaderColor() != null ? request.getHeaderColor() : "#667eea")
+                .headerColor(request.getHeaderColor())
                 .footerNote(request.getFooterNote())
                 .logoUrl(request.getLogoUrl())
                 .bannerUrl(request.getBannerUrl())
                 .showFestivalBanner(request.getShowFestivalBanner() != null ? request.getShowFestivalBanner() : false)
                 .active(request.getActive() != null ? request.getActive() : true)
                 .createdBy(createdBy)
-                .createdAt(LocalDateTime.now())
                 .build();
 
         template = templateRepository.save(template);
-        log.info("Invoice template created: {} (templateId: {})", template.getId(), template.getTemplateId());
+        log.info("Invoice template created: {} (ID: {})", request.getTemplateId(), template.getId());
         return mapToResponse(template);
     }
 
@@ -95,10 +89,10 @@ public class InvoiceTemplateService {
         InvoiceTemplate template = templateRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice template not found with id: " + id));
 
-        // Check if templateId is being changed and if it's already in use
-        if (!template.getTemplateId().equals(request.getTemplateId()) &&
-                templateRepository.existsByTemplateId(request.getTemplateId())) {
-            throw new BadRequestException("Template with templateId '" + request.getTemplateId() + "' already exists");
+        // Check templateId uniqueness if changed
+        if (!template.getTemplateId().equals(request.getTemplateId()) && 
+            templateRepository.existsByTemplateId(request.getTemplateId())) {
+            throw new BadRequestException("Template ID '" + request.getTemplateId() + "' already exists");
         }
 
         template.setTemplateId(request.getTemplateId());
@@ -106,17 +100,16 @@ public class InvoiceTemplateService {
         template.setDescription(request.getDescription());
         template.setTemplateType(request.getTemplateType());
         template.setSubject(request.getSubject());
-        template.setHeaderColor(request.getHeaderColor() != null ? request.getHeaderColor() : template.getHeaderColor());
+        template.setHeaderColor(request.getHeaderColor());
         template.setFooterNote(request.getFooterNote());
         template.setLogoUrl(request.getLogoUrl());
         template.setBannerUrl(request.getBannerUrl());
-        template.setShowFestivalBanner(request.getShowFestivalBanner() != null ? request.getShowFestivalBanner() : template.getShowFestivalBanner());
-        template.setActive(request.getActive() != null ? request.getActive() : template.getActive());
+        template.setShowFestivalBanner(request.getShowFestivalBanner());
+        template.setActive(request.getActive());
         template.setUpdatedBy(updatedBy);
-        template.setUpdatedAt(LocalDateTime.now());
 
         template = templateRepository.save(template);
-        log.info("Invoice template updated: {} (templateId: {})", template.getId(), template.getTemplateId());
+        log.info("Invoice template updated: {} (ID: {})", request.getTemplateId(), template.getId());
         return mapToResponse(template);
     }
 
@@ -126,18 +119,13 @@ public class InvoiceTemplateService {
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice template not found with id: " + id));
 
         templateRepository.delete(template);
-        log.info("Invoice template deleted: {} (templateId: {})", template.getId(), template.getTemplateId());
+        log.info("Invoice template deleted: {} (ID: {})", template.getTemplateId(), id);
     }
 
-    @Transactional
-    public InvoiceTemplateResponse toggleActive(Long id) {
-        InvoiceTemplate template = templateRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Invoice template not found with id: " + id));
-
-        template.setActive(!template.getActive());
-        template = templateRepository.save(template);
-        log.info("Invoice template status toggled: {} (active: {})", template.getId(), template.getActive());
-        return mapToResponse(template);
+    @Transactional(readOnly = true)
+    public Page<InvoiceTemplateResponse> searchTemplates(String search, Pageable pageable) {
+        return templateRepository.search(search, pageable)
+                .map(this::mapToResponse);
     }
 
     private InvoiceTemplateResponse mapToResponse(InvoiceTemplate template) {

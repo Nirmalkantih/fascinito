@@ -1,5 +1,6 @@
 package com.fascinito.pos.service;
 
+import com.fascinito.pos.config.AppConfig;
 import com.fascinito.pos.entity.EmailLog;
 import com.fascinito.pos.entity.Invoice;
 import com.fascinito.pos.entity.Order;
@@ -8,16 +9,14 @@ import com.fascinito.pos.repository.InvoiceRepository;
 import com.fascinito.pos.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
-import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -25,7 +24,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 @Service
 @RequiredArgsConstructor
@@ -33,353 +31,251 @@ import java.time.format.DateTimeFormatter;
 public class EmailService {
 
     private final JavaMailSender mailSender;
-    private final SpringTemplateEngine templateEngine;
-    private final EmailLogRepository emailLogRepository;
+    private final TemplateEngine templateEngine;
     private final InvoiceRepository invoiceRepository;
     private final OrderRepository orderRepository;
-    private final InvoiceService invoiceService;
+    private final EmailLogRepository emailLogRepository;
+    private final AppConfig appConfig;
 
-    @Value("${spring.mail.properties.mail.smtp.from:noreply@fascinito.in}")
-    private String fromEmail;
-
-    @Value("${app.mail.admin:admin@fascinito.in}")
-    private String adminEmail;
-
-    /**
-     * Send invoice email asynchronously
-     */
     @Async("taskExecutor")
     @Transactional
-    public void sendInvoiceEmail(Long orderId, Long invoiceId) {
+    public void sendInvoiceEmail(Long invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId).orElse(null);
+        if (invoice == null) {
+            log.warn("Invoice not found for id: {}", invoiceId);
+            return;
+        }
+
+        Order order = invoice.getOrder();
+        String recipientEmail = order.getUser().getEmail();
+
+        if (recipientEmail == null || recipientEmail.isBlank()) {
+            log.warn("Customer email not found for order: {}", order.getOrderNumber());
+            logEmail(EmailLog.EmailType.INVOICE, recipientEmail, "Invoice Email", false, "Customer email not available", order.getId(), invoiceId);
+            return;
+        }
+
         try {
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new RuntimeException("Order not found"));
-            Invoice invoice = invoiceRepository.findById(invoiceId)
-                    .orElseThrow(() -> new RuntimeException("Invoice not found"));
-
-            String customerEmail = order.getUser().getEmail();
-            if (customerEmail == null || customerEmail.trim().isEmpty()) {
-                log.warn("Customer email not available for order: {}", orderId);
-                logEmailFailure(customerEmail, "Invoice Email", orderId, invoiceId,
-                        "Customer email not available");
-                return;
-            }
-
             // Read PDF file
             byte[] pdfBytes = Files.readAllBytes(Paths.get(invoice.getFilePath()));
 
+            // Prepare email context
+            Context context = new Context();
+            context.setVariable("customer", order.getUser());
+            context.setVariable("order", order);
+            context.setVariable("invoice", invoice);
+
+            String subject = invoice.getInvoiceTemplate() != null ? 
+                    invoice.getInvoiceTemplate().getSubject() : 
+                    "Your Invoice - Fascinito";
+
+            String htmlContent = templateEngine.process("invoice-email", context);
+
             // Send email with PDF attachment
             sendEmailWithAttachment(
-                    customerEmail,
-                    "Invoice for Order #" + order.getOrderNumber(),
-                    buildInvoiceEmailBody(order, invoice),
-                    pdfBytes,
+                    recipientEmail,
+                    subject,
+                    htmlContent,
                     "invoice_" + invoice.getInvoiceNumber() + ".pdf",
-                    EmailLog.EmailType.INVOICE,
-                    orderId,
-                    invoiceId
+                    pdfBytes
             );
 
             // Mark invoice as email sent
-            invoiceService.markEmailSent(invoiceId);
+            invoice.setEmailSent(true);
+            invoice.setEmailSentAt(LocalDateTime.now());
+            invoiceRepository.save(invoice);
 
-            log.info("Invoice email sent successfully to: {} for order: {}", customerEmail, orderId);
-        } catch (IOException e) {
-            log.error("Error reading invoice PDF for order: {}", orderId, e);
-            logEmailFailure(null, "Invoice Email", orderId, invoiceId,
-                    "Error reading PDF: " + e.getMessage());
-        } catch (Exception e) {
-            log.error("Error sending invoice email for order: {}", orderId, e);
-            logEmailFailure(null, "Invoice Email", orderId, invoiceId,
-                    "Error sending email: " + e.getMessage());
+            // Log success
+            logEmail(EmailLog.EmailType.INVOICE, recipientEmail, subject, true, null, order.getId(), invoiceId);
+            log.info("Invoice email sent successfully to: {} for invoice: {}", recipientEmail, invoice.getInvoiceNumber());
+
+        } catch (IOException | MessagingException e) {
+            log.error("Error sending invoice email for invoiceId: {}", invoiceId, e);
+            logEmail(EmailLog.EmailType.INVOICE, recipientEmail, "Invoice Email", false, e.getMessage(), order.getId(), invoiceId);
         }
     }
 
-    /**
-     * Send order confirmation email asynchronously
-     */
     @Async("taskExecutor")
     @Transactional
     public void sendOrderConfirmationEmail(Long orderId) {
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            log.warn("Order not found for id: {}", orderId);
+            return;
+        }
+
+        String recipientEmail = order.getUser().getEmail();
+        if (recipientEmail == null || recipientEmail.isBlank()) {
+            log.warn("Customer email not found for order: {}", order.getOrderNumber());
+            return;
+        }
+
         try {
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new RuntimeException("Order not found"));
+            Context context = new Context();
+            context.setVariable("customer", order.getUser());
+            context.setVariable("order", order);
+            context.setVariable("orderItems", order.getItems());
 
-            String customerEmail = order.getUser().getEmail();
-            if (customerEmail == null || customerEmail.trim().isEmpty()) {
-                log.warn("Customer email not available for order: {}", orderId);
-                logEmailFailure(customerEmail, "Order Confirmation", orderId, null,
-                        "Customer email not available");
-                return;
-            }
+            String subject = "Order Confirmation - #" + order.getOrderNumber();
+            String htmlContent = templateEngine.process("order-confirmation-email", context);
 
-            sendSimpleEmail(
-                    customerEmail,
-                    "Order Confirmation - Order #" + order.getOrderNumber(),
-                    buildOrderConfirmationEmailBody(order),
-                    EmailLog.EmailType.ORDER_CONFIRMATION,
-                    orderId,
-                    null
-            );
+            sendEmail(recipientEmail, subject, htmlContent);
 
-            log.info("Order confirmation email sent to: {} for order: {}", customerEmail, orderId);
-        } catch (Exception e) {
-            log.error("Error sending order confirmation email for order: {}", orderId, e);
-            logEmailFailure(null, "Order Confirmation", orderId, null,
-                    "Error: " + e.getMessage());
+            logEmail(EmailLog.EmailType.ORDER_CONFIRMATION, recipientEmail, subject, true, null, orderId, null);
+            log.info("Order confirmation email sent to: {}", recipientEmail);
+
+        } catch (MessagingException e) {
+            log.error("Error sending order confirmation email for orderId: {}", orderId, e);
+            logEmail(EmailLog.EmailType.ORDER_CONFIRMATION, recipientEmail, "Order Confirmation", false, e.getMessage(), orderId, null);
         }
     }
 
-    /**
-     * Send order status update email asynchronously
-     */
     @Async("taskExecutor")
     @Transactional
     public void sendOrderStatusUpdateEmail(Long orderId, String newStatus) {
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            log.warn("Order not found for id: {}", orderId);
+            return;
+        }
+
+        String recipientEmail = order.getUser().getEmail();
+        if (recipientEmail == null || recipientEmail.isBlank()) {
+            log.warn("Customer email not found for order: {}", order.getOrderNumber());
+            return;
+        }
+
         try {
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new RuntimeException("Order not found"));
+            Context context = new Context();
+            context.setVariable("customer", order.getUser());
+            context.setVariable("order", order);
+            context.setVariable("newStatus", newStatus);
 
-            String customerEmail = order.getUser().getEmail();
-            if (customerEmail == null || customerEmail.trim().isEmpty()) {
-                log.warn("Customer email not available for order: {}", orderId);
-                logEmailFailure(customerEmail, "Status Update", orderId, null,
-                        "Customer email not available");
-                return;
-            }
+            String subject = "Order Status Update - #" + order.getOrderNumber();
+            String htmlContent = templateEngine.process("order-status-email", context);
 
-            sendSimpleEmail(
-                    customerEmail,
-                    "Order Status Update - Order #" + order.getOrderNumber(),
-                    buildStatusUpdateEmailBody(order, newStatus),
-                    EmailLog.EmailType.STATUS_UPDATE,
-                    orderId,
-                    null
-            );
+            sendEmail(recipientEmail, subject, htmlContent);
 
-            log.info("Status update email sent to: {} for order: {} (status: {})", customerEmail, orderId, newStatus);
-        } catch (Exception e) {
-            log.error("Error sending status update email for order: {}", orderId, e);
-            logEmailFailure(null, "Status Update", orderId, null,
-                    "Error: " + e.getMessage());
+            logEmail(EmailLog.EmailType.STATUS_UPDATE, recipientEmail, subject, true, null, orderId, null);
+            log.info("Status update email sent to: {} for status: {}", recipientEmail, newStatus);
+
+        } catch (MessagingException e) {
+            log.error("Error sending status update email for orderId: {}", orderId, e);
+            logEmail(EmailLog.EmailType.STATUS_UPDATE, recipientEmail, "Status Update", false, e.getMessage(), orderId, null);
         }
     }
 
-    /**
-     * Send payment success email asynchronously
-     */
     @Async("taskExecutor")
     @Transactional
     public void sendPaymentSuccessEmail(Long orderId) {
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            log.warn("Order not found for id: {}", orderId);
+            return;
+        }
+
+        String recipientEmail = order.getUser().getEmail();
+        if (recipientEmail == null || recipientEmail.isBlank()) {
+            log.warn("Customer email not found for order: {}", order.getOrderNumber());
+            return;
+        }
+
         try {
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new RuntimeException("Order not found"));
+            Context context = new Context();
+            context.setVariable("customer", order.getUser());
+            context.setVariable("order", order);
+            context.setVariable("payment", order.getPayment());
 
-            String customerEmail = order.getUser().getEmail();
-            if (customerEmail == null || customerEmail.trim().isEmpty()) {
-                log.warn("Customer email not available for order: {}", orderId);
-                logEmailFailure(customerEmail, "Payment Success", orderId, null,
-                        "Customer email not available");
-                return;
-            }
+            String subject = "Payment Received - #" + order.getOrderNumber();
+            String htmlContent = templateEngine.process("payment-success-email", context);
 
-            sendSimpleEmail(
-                    customerEmail,
-                    "Payment Successful - Order #" + order.getOrderNumber(),
-                    buildPaymentSuccessEmailBody(order),
-                    EmailLog.EmailType.PAYMENT_SUCCESS,
-                    orderId,
-                    null
-            );
+            sendEmail(recipientEmail, subject, htmlContent);
 
-            log.info("Payment success email sent to: {} for order: {}", customerEmail, orderId);
-        } catch (Exception e) {
-            log.error("Error sending payment success email for order: {}", orderId, e);
-            logEmailFailure(null, "Payment Success", orderId, null,
-                    "Error: " + e.getMessage());
+            logEmail(EmailLog.EmailType.PAYMENT_SUCCESS, recipientEmail, subject, true, null, orderId, null);
+            log.info("Payment success email sent to: {}", recipientEmail);
+
+        } catch (MessagingException e) {
+            log.error("Error sending payment success email for orderId: {}", orderId, e);
+            logEmail(EmailLog.EmailType.PAYMENT_SUCCESS, recipientEmail, "Payment Success", false, e.getMessage(), orderId, null);
         }
     }
 
-    /**
-     * Send refund notification email asynchronously
-     */
     @Async("taskExecutor")
     @Transactional
-    public void sendRefundNotificationEmail(Long orderId, String refundAmount) {
+    public void sendRefundNotificationEmail(Long orderId) {
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            log.warn("Order not found for id: {}", orderId);
+            return;
+        }
+
+        String recipientEmail = order.getUser().getEmail();
+        if (recipientEmail == null || recipientEmail.isBlank()) {
+            log.warn("Customer email not found for order: {}", order.getOrderNumber());
+            return;
+        }
+
         try {
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new RuntimeException("Order not found"));
+            Context context = new Context();
+            context.setVariable("customer", order.getUser());
+            context.setVariable("order", order);
 
-            String customerEmail = order.getUser().getEmail();
-            if (customerEmail == null || customerEmail.trim().isEmpty()) {
-                log.warn("Customer email not available for order: {}", orderId);
-                logEmailFailure(customerEmail, "Refund Notification", orderId, null,
-                        "Customer email not available");
-                return;
-            }
+            String subject = "Refund Processed - #" + order.getOrderNumber();
+            String htmlContent = templateEngine.process("refund-email", context);
 
-            sendSimpleEmail(
-                    customerEmail,
-                    "Refund Processed - Order #" + order.getOrderNumber(),
-                    buildRefundEmailBody(order, refundAmount),
-                    EmailLog.EmailType.REFUND_NOTIFICATION,
-                    orderId,
-                    null
-            );
+            sendEmail(recipientEmail, subject, htmlContent);
 
-            log.info("Refund notification email sent to: {} for order: {}", customerEmail, orderId);
-        } catch (Exception e) {
-            log.error("Error sending refund notification email for order: {}", orderId, e);
-            logEmailFailure(null, "Refund Notification", orderId, null,
-                    "Error: " + e.getMessage());
+            logEmail(EmailLog.EmailType.REFUND_NOTIFICATION, recipientEmail, subject, true, null, orderId, null);
+            log.info("Refund notification email sent to: {}", recipientEmail);
+
+        } catch (MessagingException e) {
+            log.error("Error sending refund email for orderId: {}", orderId, e);
+            logEmail(EmailLog.EmailType.REFUND_NOTIFICATION, recipientEmail, "Refund Notification", false, e.getMessage(), orderId, null);
         }
     }
 
-    /**
-     * Send simple text email
-     */
-    private void sendSimpleEmail(String to, String subject, String body, EmailLog.EmailType emailType,
-                                 Long orderId, Long invoiceId) throws MessagingException {
+    private void sendEmail(String to, String subject, String htmlContent) throws MessagingException {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-        helper.setFrom(fromEmail);
+        helper.setFrom(appConfig.getMail().getFrom());
         helper.setTo(to);
         helper.setSubject(subject);
-        helper.setText(body, true); // true = HTML content
+        helper.setText(htmlContent, true);
 
         mailSender.send(message);
-
-        logEmailSuccess(to, subject, emailType, orderId, invoiceId);
     }
 
-    /**
-     * Send email with file attachment
-     */
-    private void sendEmailWithAttachment(String to, String subject, String body, byte[] fileBytes,
-                                        String filename, EmailLog.EmailType emailType,
-                                        Long orderId, Long invoiceId) throws MessagingException {
+    private void sendEmailWithAttachment(String to, String subject, String htmlContent, String attachmentName, byte[] attachmentBytes) throws MessagingException {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-        helper.setFrom(fromEmail);
+        helper.setFrom(appConfig.getMail().getFrom());
         helper.setTo(to);
         helper.setSubject(subject);
-        helper.setText(body, true); // true = HTML content
-
-        // Add attachment
-        helper.addAttachment(filename, new ByteArrayResource(fileBytes));
+        helper.setText(htmlContent, true);
+        
+        helper.addAttachment(attachmentName, new ByteArrayResource(attachmentBytes));
 
         mailSender.send(message);
-
-        logEmailSuccess(to, subject, emailType, orderId, invoiceId);
     }
 
-    /**
-     * Build invoice email HTML body
-     */
-    private String buildInvoiceEmailBody(Order order, Invoice invoice) {
-        Context context = new Context();
-        context.setVariable("customerName", order.getUser().getFirstName());
-        context.setVariable("orderNumber", order.getOrderNumber());
-        context.setVariable("invoiceNumber", invoice.getInvoiceNumber());
-        context.setVariable("totalAmount", order.getTotalAmount());
-        context.setVariable("generatedDate", invoice.getGeneratedAt().format(DateTimeFormatter.ofPattern("dd-MMM-yyyy")));
+    private void logEmail(EmailLog.EmailType emailType, String recipient, String subject, Boolean success, String errorMessage, Long orderId, Long invoiceId) {
+        try {
+            EmailLog log = EmailLog.builder()
+                    .emailType(emailType)
+                    .recipient(recipient)
+                    .subject(subject)
+                    .success(success)
+                    .errorMessage(errorMessage)
+                    .orderId(orderId)
+                    .invoiceId(invoiceId)
+                    .retryCount(0)
+                    .build();
 
-        return templateEngine.process("order-invoice-email", context);
-    }
-
-    /**
-     * Build order confirmation email HTML body
-     */
-    private String buildOrderConfirmationEmailBody(Order order) {
-        Context context = new Context();
-        context.setVariable("customerName", order.getUser().getFirstName());
-        context.setVariable("orderNumber", order.getOrderNumber());
-        context.setVariable("totalAmount", order.getTotalAmount());
-        context.setVariable("itemCount", order.getItems().size());
-        context.setVariable("createdDate", order.getCreatedAt().format(DateTimeFormatter.ofPattern("dd-MMM-yyyy HH:mm")));
-
-        return templateEngine.process("order-confirmation-email", context);
-    }
-
-    /**
-     * Build status update email HTML body
-     */
-    private String buildStatusUpdateEmailBody(Order order, String newStatus) {
-        Context context = new Context();
-        context.setVariable("customerName", order.getUser().getFirstName());
-        context.setVariable("orderNumber", order.getOrderNumber());
-        context.setVariable("status", newStatus);
-        context.setVariable("statusDate", LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd-MMM-yyyy HH:mm")));
-
-        return templateEngine.process("order-status-email", context);
-    }
-
-    /**
-     * Build payment success email HTML body
-     */
-    private String buildPaymentSuccessEmailBody(Order order) {
-        Context context = new Context();
-        context.setVariable("customerName", order.getUser().getFirstName());
-        context.setVariable("orderNumber", order.getOrderNumber());
-        context.setVariable("totalAmount", order.getTotalAmount());
-        context.setVariable("paymentMethod", order.getPayment() != null ? order.getPayment().getPaymentMethod() : "Unknown");
-
-        return templateEngine.process("payment-success-email", context);
-    }
-
-    /**
-     * Build refund email HTML body
-     */
-    private String buildRefundEmailBody(Order order, String refundAmount) {
-        Context context = new Context();
-        context.setVariable("customerName", order.getUser().getFirstName());
-        context.setVariable("orderNumber", order.getOrderNumber());
-        context.setVariable("refundAmount", refundAmount);
-        context.setVariable("processedDate", LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd-MMM-yyyy HH:mm")));
-
-        return templateEngine.process("refund-email", context);
-    }
-
-    /**
-     * Log successful email send
-     */
-    @Transactional
-    private void logEmailSuccess(String recipient, String subject, EmailLog.EmailType emailType,
-                                Long orderId, Long invoiceId) {
-        EmailLog log = EmailLog.builder()
-                .emailType(emailType)
-                .recipient(recipient)
-                .subject(subject)
-                .success(true)
-                .orderId(orderId)
-                .invoiceId(invoiceId)
-                .retryCount(0)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        emailLogRepository.save(log);
-    }
-
-    /**
-     * Log failed email send
-     */
-    @Transactional
-    private void logEmailFailure(String recipient, String subject, Long orderId, Long invoiceId,
-                                String errorMessage) {
-        EmailLog log = EmailLog.builder()
-                .emailType(EmailLog.EmailType.INVOICE)
-                .recipient(recipient)
-                .subject(subject)
-                .success(false)
-                .errorMessage(errorMessage)
-                .orderId(orderId)
-                .invoiceId(invoiceId)
-                .retryCount(0)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        emailLogRepository.save(log);
+            emailLogRepository.save(log);
+        } catch (Exception e) {
+            log.error("Error logging email", e);
+        }
     }
 }
