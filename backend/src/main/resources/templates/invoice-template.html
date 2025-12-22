@@ -223,9 +223,9 @@
         <div class="invoice-details">
             <div class="details-section">
                 <h3>Bill To</h3>
-                <p th:text="${customer.firstName + ' ' + customer.lastName}">Customer Name</p>
-                <p th:if="${customer.email}" th:text="${customer.email}">email@example.com</p>
-                <p th:text="${customer.phone}">+91 XXXX XXXX XX</p>
+                <p th:text="${order.user.firstName + ' ' + order.user.lastName}">Customer Name</p>
+                <p th:if="${order.user.email}" th:text="${order.user.email}">email@example.com</p>
+                <p th:text="${order.user.phone}">+91 XXXX XXXX XX</p>
             </div>
             <div class="details-section">
                 <h3>Shipping Address</h3>
@@ -280,11 +280,11 @@
         </table>
 
         <!-- Payment Info -->
-        <div class="payment-info">
+        <div class="payment-info" th:if="${order.payment}">
             <h4>Payment Information</h4>
-            <p><strong>Payment Method:</strong> <span th:text="${payment.paymentMethod}">Credit Card</span></p>
-            <p th:if="${payment.transactionId}"><strong>Transaction ID:</strong> <span th:text="${payment.transactionId}">TXN123456</span></p>
-            <p><strong>Payment Status:</strong> <span th:text="${payment.status}">COMPLETED</span></p>
+            <p><strong>Payment Method:</strong> <span th:text="${order.payment.paymentMethod}">Credit Card</span></p>
+            <p th:if="${order.payment.transactionId}"><strong>Transaction ID:</strong> <span th:text="${order.payment.transactionId}">TXN123456</span></p>
+            <p><strong>Payment Status:</strong> <span th:text="${order.payment.status}">COMPLETED</span></p>
         </div>
 
         <!-- Footer -->
