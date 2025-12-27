@@ -5,6 +5,7 @@ import com.fascinito.pos.dto.email.EmailTemplateUpdateRequest;
 import com.fascinito.pos.dto.email.SendTestEmailRequest;
 import com.fascinito.pos.entity.EmailTemplate;
 import com.fascinito.pos.entity.Order;
+import com.fascinito.pos.entity.User;
 import com.fascinito.pos.exception.ResourceNotFoundException;
 import com.fascinito.pos.service.EmailTemplateService;
 import com.fascinito.pos.service.MailService;
@@ -18,12 +19,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/admin/email-templates")
+@RequestMapping("/admin/email-templates")
 @RequiredArgsConstructor
 @Slf4j
 public class EmailTemplateController {
@@ -90,10 +92,27 @@ public class EmailTemplateController {
             // Get the template
             EmailTemplateResponse templateResponse = emailTemplateService.getTemplateById(id);
 
+            // Create a sample user for variable replacement
+            User sampleUser = new User();
+            sampleUser.setEmail(request.getRecipientEmail());
+            sampleUser.setFirstName("Test");
+            sampleUser.setLastName("Customer");
+            sampleUser.setPhone("+919876543210");
+
             // Create a sample order for variable replacement
             Order sampleOrder = Order.builder()
                     .orderNumber("ORD-TEST-123456")
                     .status(Order.OrderStatus.CONFIRMED)
+                    .user(sampleUser)
+                    .createdAt(java.time.LocalDateTime.now())
+                    .subtotal(new BigDecimal("1000.00"))
+                    .taxAmount(new BigDecimal("180.00"))
+                    .shippingCost(new BigDecimal("50.00"))
+                    .discount(new BigDecimal("0.00"))
+                    .totalAmount(new BigDecimal("1230.00"))
+                    .shippingAddress("123 Test Street, Test City")
+                    .billingAddress("123 Test Street, Test City")
+                    .notes("Test order for email preview")
                     .build();
 
             EmailTemplate template = EmailTemplate.builder()
@@ -132,10 +151,27 @@ public class EmailTemplateController {
         try {
             EmailTemplateResponse templateResponse = emailTemplateService.getTemplateById(id);
 
+            // Create a sample user for variable replacement
+            User sampleUser = new User();
+            sampleUser.setEmail("customer@example.com");
+            sampleUser.setFirstName("John");
+            sampleUser.setLastName("Doe");
+            sampleUser.setPhone("+919876543210");
+
             // Create a sample order for variable replacement
             Order sampleOrder = Order.builder()
                     .orderNumber("ORD-SAMPLE-123456")
                     .status(Order.OrderStatus.CONFIRMED)
+                    .user(sampleUser)
+                    .createdAt(java.time.LocalDateTime.now())
+                    .subtotal(new BigDecimal("1000.00"))
+                    .taxAmount(new BigDecimal("180.00"))
+                    .shippingCost(new BigDecimal("50.00"))
+                    .discount(new BigDecimal("0.00"))
+                    .totalAmount(new BigDecimal("1230.00"))
+                    .shippingAddress("123 Sample Street, Sample City")
+                    .billingAddress("123 Sample Street, Sample City")
+                    .notes("Sample order for email template preview")
                     .build();
 
             // Process template with sample data

@@ -29,9 +29,7 @@ import {
   Mail as MailIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+import api from '../../api/axiosConfig';
 
 interface EmailTemplate {
   id: number;
@@ -69,16 +67,13 @@ export default function EmailTemplateEditPage() {
     try {
       setLoading(true);
       setError('');
-      const response = await axios.get(`${API_BASE}/api/admin/email-templates/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+      const response = await api.get(`/admin/email-templates/${id}`);
 
-      setTemplate(response.data);
-      setSubject(response.data.subject);
-      setBodyHtml(response.data.bodyHtml);
-      setIsActive(response.data.isActive);
+      const template = response as any;
+      setTemplate(template);
+      setSubject(template.subject);
+      setBodyHtml(template.bodyHtml);
+      setIsActive(template.isActive);
     } catch (error) {
       setError('Failed to fetch template');
       console.error(error);
@@ -90,15 +85,10 @@ export default function EmailTemplateEditPage() {
   // Fetch available variables
   const fetchVariables = async () => {
     try {
-      const response = await axios.get(
-        `${API_BASE}/api/admin/email-templates/config/available-variables`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        }
+      const response = await api.get(
+        `/admin/email-templates/config/available-variables`
       );
-      setVariables(response.data);
+      setVariables((response as any) || []);
     } catch (error) {
       console.error('Failed to fetch variables:', error);
     }
@@ -117,17 +107,12 @@ export default function EmailTemplateEditPage() {
       setSaving(true);
       setError('');
       setSuccess('');
-      await axios.put(
-        `${API_BASE}/api/admin/email-templates/${id}`,
+      await api.put(
+        `/admin/email-templates/${id}`,
         {
           subject,
           bodyHtml,
           isActive,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
         }
       );
 
@@ -144,19 +129,15 @@ export default function EmailTemplateEditPage() {
   // Handle preview
   const handlePreview = async () => {
     try {
-      const response = await axios.post(
-        `${API_BASE}/api/admin/email-templates/${id}/preview`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        }
+      const response = await api.post(
+        `/admin/email-templates/${id}/preview`,
+        {}
       );
 
+      const data = response as any;
       setPreviewData({
-        subject: response.data.subject,
-        body: response.data.body,
+        subject: data.subject,
+        body: data.body,
       });
       setPreviewModal(true);
     } catch (error) {
@@ -173,15 +154,10 @@ export default function EmailTemplateEditPage() {
     }
 
     try {
-      await axios.post(
-        `${API_BASE}/api/admin/email-templates/${id}/send-test`,
+      await api.post(
+        `/admin/email-templates/${id}/send-test`,
         {
           recipientEmail: testEmail,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
         }
       );
 

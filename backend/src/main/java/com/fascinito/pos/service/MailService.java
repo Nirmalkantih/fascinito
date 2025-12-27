@@ -27,6 +27,7 @@ public class MailService {
     public MailService(Optional<JavaMailSender> javaMailSender, EmailTemplateService emailTemplateService) {
         this.javaMailSender = javaMailSender;
         this.emailTemplateService = emailTemplateService;
+        log.info("MailService initialized with JavaMailSender. Mail configured: {}", javaMailSender.isPresent());
     }
 
     /**

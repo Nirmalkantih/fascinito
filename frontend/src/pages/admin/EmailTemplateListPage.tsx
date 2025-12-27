@@ -26,10 +26,8 @@ import {
   Mail as MailIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../../api/axiosConfig';
 import { useNavigate } from 'react-router-dom';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 interface EmailTemplate {
   id: number;
@@ -61,17 +59,12 @@ export default function EmailTemplateListPage() {
     try {
       setLoading(true);
       setError('');
-      const response = await axios.get(
-        `${API_BASE}/api/admin/email-templates?page=${pageNum}&size=${rowsPerPage}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        }
+      const response = await api.get(
+        `/admin/email-templates?page=${pageNum}&size=${rowsPerPage}`
       );
 
-      setTemplates(response.data.content);
-      setTotal(response.data.totalElements);
+      setTemplates((response as any).content || []);
+      setTotal((response as any).totalElements || 0);
     } catch (error) {
       setError('Failed to fetch email templates');
       console.error(error);
@@ -83,12 +76,8 @@ export default function EmailTemplateListPage() {
   // Fetch statistics
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${API_BASE}/api/admin/email-templates/stats/summary`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      setStats(response.data);
+      const response = await api.get(`/admin/email-templates/stats/summary`);
+      setStats(response as any);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     }
@@ -107,20 +96,15 @@ export default function EmailTemplateListPage() {
   // Handle preview
   const handlePreview = async (id: number) => {
     try {
-      const response = await axios.post(
-        `${API_BASE}/api/admin/email-templates/${id}/preview`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        }
+      const response = await api.post(
+        `/admin/email-templates/${id}/preview`,
+        {}
       );
 
       // Show preview in new window
       const previewWindow = window.open('', '_blank');
       if (previewWindow) {
-        previewWindow.document.write(response.data.body);
+        previewWindow.document.write((response as any).body);
         previewWindow.document.close();
       }
     } catch (error) {

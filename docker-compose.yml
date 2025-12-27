@@ -40,6 +40,11 @@ services:
       RAZORPAY_CURRENCY: INR
       SHOW_SQL: true
       LOG_LEVEL: DEBUG
+      MAIL_HOST: smtp.hostinger.com
+      MAIL_PORT: 465
+      MAIL_USERNAME: support@fascinito.in
+      MAIL_PASSWORD: Fascinito123!
+      MAIL_FROM: support@fascinito.in
     ports:
       - "8080:8080"
     volumes:
