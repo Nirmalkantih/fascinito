@@ -56,6 +56,8 @@ public class OrderService {
     private final OrderRefundRepository orderRefundRepository;
     private final RefundRequestRepository refundRequestRepository;
     private final RefundService refundService;
+    private final EmailTemplateService emailTemplateService;
+    private final MailService mailService;
 
     /**
      * Create order from cart with stock deduction
@@ -396,6 +398,7 @@ public class OrderService {
     /**
      * Update order status (admin only)
      * Creates a status history record for tracking
+     * Sends email notification based on email template
      */
     @Transactional
     public OrderResponse updateOrderStatus(Long orderId, String newStatus) {
@@ -404,7 +407,7 @@ public class OrderService {
 
         Order.OrderStatus status = Order.OrderStatus.valueOf(newStatus.toUpperCase());
         Order.OrderStatus previousStatus = order.getStatus();
-        
+
         // Only create history if status actually changed
         if (previousStatus != status) {
             order.setStatus(status);
@@ -421,6 +424,9 @@ public class OrderService {
                     .notes("Status updated from " + previousStatus + " to " + status)
                     .build();
             statusHistoryRepository.save(history);
+
+            // Send email notification based on order status
+            sendOrderStatusEmail(order, status);
 
             log.info("Updated order {} status from {} to {} by {}", orderId, previousStatus, newStatus, updatedBy);
         } else {
@@ -965,5 +971,30 @@ public class OrderService {
         log.info("Refund request {} rejected for order {}", refundRequestId, orderId);
 
         return mapRefundRequestToResponse(refundRequest);
+    }
+
+    /**
+     * Send order status change email notification
+     * Maps order status to email template and sends email to customer
+     */
+    private void sendOrderStatusEmail(Order order, Order.OrderStatus status) {
+        try {
+            // Map order status to template key
+            com.fascinito.pos.entity.EmailTemplate.TemplateKey templateKey =
+                    com.fascinito.pos.entity.EmailTemplate.TemplateKey.fromOrderStatus(status);
+
+            if (templateKey != null) {
+                // Fetch the email template
+                com.fascinito.pos.entity.EmailTemplate template =
+                        emailTemplateService.getTemplateByKey(templateKey.getKey());
+
+                // Only send if template exists and is active
+                if (template != null && template.getIsActive()) {
+                    mailService.sendOrderStatusEmail(order, template);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to send order status email for order {}: {}", order.getOrderNumber(), e.getMessage(), e);
+        }
     }
 }
