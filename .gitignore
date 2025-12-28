@@ -21,6 +21,8 @@ build/
 .env.local
 .env.production
 .env.razorpay
+backend/src/main/resources/application.yml
+backend/src/main/resources/application-*.yml
 
 # OS
 .DS_Store

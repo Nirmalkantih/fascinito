@@ -110,7 +110,8 @@ export default function CustomerLayout() {
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          boxShadow: theme.shadows[12]
+          boxShadow: theme.shadows[12],
+          borderRadius: 0
         }}
       >
         <Toolbar sx={{ py: 1 }}>

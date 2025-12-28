@@ -754,7 +754,7 @@ export default function Home() {
                     }
                   }
                 }}
-                onClick={() => navigate(`/products?category=${category.name}`)}
+                onClick={() => navigate(`/products?categoryId=${category.id}`)}
               >
                 {/* Category Image */}
                 <Box

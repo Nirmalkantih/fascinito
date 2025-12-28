@@ -69,7 +69,7 @@ export default function Products() {
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist()
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '')
-  const [categoryFilter] = useState(searchParams.get('category') || '')
+  const [categoryFilter] = useState(searchParams.get('categoryId') || '')
   const [page, setPage] = useState(0)
   const [rowsPerPage] = useState(12)
   const [allProducts, setAllProducts] = useState<Product[]>([])
@@ -98,7 +98,7 @@ export default function Products() {
         }
 
         if (categoryFilter) {
-          params.category = categoryFilter
+          params.categoryId = categoryFilter
         }
 
         const response = await api.get('/products', { params })

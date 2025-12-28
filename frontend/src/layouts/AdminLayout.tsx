@@ -27,7 +27,8 @@ import {
   Logout,
   AdminPanelSettings,
   Summarize,
-  ViewCarousel as BannerIcon
+  ViewCarousel as BannerIcon,
+  MailOutlined as MailIcon
 } from '@mui/icons-material'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -58,6 +59,7 @@ export default function AdminLayout() {
     { text: 'Orders', icon: <ShoppingCart />, path: '/admin/orders', permission: 'view_orders' },
     { text: 'Customers', icon: <People />, path: '/admin/customers', permission: 'view_customers' },
     { text: 'Staff', icon: <AdminPanelSettings />, path: '/admin/staff', permission: 'view_staff' },
+    { text: 'Email Templates', icon: <MailIcon />, path: '/admin/email-templates', permission: 'view_dashboard' },
     { text: 'Reports', icon: <Summarize />, path: '/admin/reports', permission: 'view_reports' },
   ]
 
@@ -66,12 +68,13 @@ export default function AdminLayout() {
 
   return (
     <Box sx={{ display: 'flex' }}>
-      <AppBar 
-        position="fixed" 
-        sx={{ 
+      <AppBar
+        position="fixed"
+        sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          boxShadow: theme.shadows[12]
+          boxShadow: theme.shadows[12],
+          borderRadius: 0
         }}
       >
         <Toolbar sx={{ py: 1 }}>
