@@ -114,6 +114,87 @@ SHOW_SQL=false
 docker-compose up -d
 ```
 
+## Render Deployment
+
+For Render.com deployments, add these environment variables in the Render dashboard:
+
+### SMTP Configuration (Required)
+
+```
+MAIL_HOST=smtp.hostinger.com
+MAIL_PORT=465
+MAIL_USERNAME=your_email@domain.com
+MAIL_PASSWORD=your_app_password
+MAIL_FROM=your_email@domain.com
+```
+
+### Database Configuration
+
+```
+DB_HOST=your-postgres-db-url.onrender.com
+DB_PORT=5432
+DB_NAME=fascinito_pos
+DB_USER=fascinito_user
+DB_PASSWORD=your_secure_db_password
+```
+
+### Authentication & Security
+
+```
+JWT_SECRET=your-very-secure-secret-key-at-least-32-characters-long-and-random
+```
+
+### Payment Integration
+
+```
+RAZORPAY_KEY_ID=rzp_live_your_key_id
+RAZORPAY_KEY_SECRET=your_live_key_secret
+RAZORPAY_CURRENCY=INR
+```
+
+### Frontend Configuration
+
+```
+CORS_ORIGINS=https://your-frontend-domain.onrender.com
+VITE_API_URL=https://your-backend-api.onrender.com/api
+```
+
+### Logging & Debugging
+
+```
+LOG_LEVEL=INFO
+SHOW_SQL=false
+SERVER_PORT=10000
+```
+
+### Steps to Add Variables in Render:
+
+1. Go to your Render service dashboard
+2. Click **Environment** tab
+3. Add each variable as a key-value pair
+4. Click **Save**
+5. Render will redeploy your service
+
+### Important Notes:
+
+⚠️ **MAIL_PASSWORD**: Use app-specific password from Hostinger, NOT your main account password
+- Go to Hostinger Control Panel → Email accounts
+- Click on your email account
+- Generate app-specific password
+- Use that password in MAIL_PASSWORD
+
+⚠️ **JWT_SECRET**: Must be at least 32 characters, use a strong random string
+- Generate with: `openssl rand -base64 32`
+
+⚠️ **Database**: Make sure your Postgres database on Render is:
+- In the same region (for better performance)
+- Has the correct firewall settings
+- Database user has proper permissions
+
+⚠️ **CORS**: Update with your actual domain after deployment
+- Frontend: `https://your-frontend-app.onrender.com`
+- Backend: `https://your-api-service.onrender.com/api`
+
 ## Production Deployment
 
 For production:
