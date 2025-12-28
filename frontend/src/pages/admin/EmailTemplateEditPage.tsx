@@ -16,11 +16,12 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  List,
-  ListItem,
-  ListItemText,
   Paper,
   Divider,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -56,6 +57,7 @@ export default function EmailTemplateEditPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [variables, setVariables] = useState<Variable[]>([]);
+  const [selectedVariable, setSelectedVariable] = useState('');
   const [testEmail, setTestEmail] = useState('');
   const [previewModal, setPreviewModal] = useState(false);
   const [previewData, setPreviewData] = useState({ subject: '', body: '' });
@@ -271,32 +273,52 @@ export default function EmailTemplateEditPage() {
           <Stack spacing={2}>
             {/* Available Variables */}
             <Card>
-              <CardHeader title="Available Variables" subheader="Click to insert" />
+              <CardHeader title="Available Variables" subheader="Select to insert" />
               <CardContent>
-                <List dense>
-                  {variables.map((variable) => (
-                    <ListItem
-                      key={variable.name}
-                      button
-                      onClick={() => insertVariable(variable.name)}
-                      sx={{
-                        mb: 1,
-                        backgroundColor: '#f5f5f5',
-                        borderRadius: 1,
-                        '&:hover': { backgroundColor: '#e0e0e0' },
+                <Stack spacing={2}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="variable-select-label">Select Variable</InputLabel>
+                    <Select
+                      labelId="variable-select-label"
+                      id="variable-select"
+                      value={selectedVariable}
+                      label="Select Variable"
+                      onChange={(e) => {
+                        setSelectedVariable(e.target.value);
+                        insertVariable(e.target.value);
+                        setSelectedVariable('');
                       }}
                     >
-                      <ListItemText
-                        primary={
-                          <code style={{ backgroundColor: '#fff3e0', padding: '2px 6px', borderRadius: '3px' }}>
-                            {`{{${variable.name}}}`}
-                          </code>
-                        }
-                        secondary={variable.description}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
+                      {variables.map((variable) => (
+                        <MenuItem key={variable.name} value={variable.name}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <code style={{ fontWeight: 'bold' }}>{`{{${variable.name}}}`}</code>
+                            <span style={{ fontSize: '0.85em', color: '#666' }}>{variable.description}</span>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  {/* Variable Info Box */}
+                  {selectedVariable === '' && variables.length > 0 && (
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        backgroundColor: '#f0f4ff',
+                        borderRadius: 1,
+                        borderLeft: '4px solid #6366f1',
+                        fontSize: '0.875rem',
+                        color: '#1e40af',
+                      }}
+                    >
+                      <strong>How to use:</strong>
+                      <br />
+                      Select a variable from the dropdown above to automatically insert it into your email template.
+                      You can also manually type variables in the format: {`{{variableName}}`}
+                    </Box>
+                  )}
+                </Stack>
               </CardContent>
             </Card>
 

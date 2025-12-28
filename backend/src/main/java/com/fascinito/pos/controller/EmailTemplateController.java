@@ -1,5 +1,6 @@
 package com.fascinito.pos.controller;
 
+import com.fascinito.pos.dto.email.CreateEmailTemplateRequest;
 import com.fascinito.pos.dto.email.EmailTemplateResponse;
 import com.fascinito.pos.dto.email.EmailTemplateUpdateRequest;
 import com.fascinito.pos.dto.email.SendTestEmailRequest;
@@ -44,6 +45,23 @@ public class EmailTemplateController {
     }
 
     /**
+     * Create new email template
+     */
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<EmailTemplateResponse> createTemplate(
+            @RequestBody CreateEmailTemplateRequest request) {
+        log.info("Creating new email template: {}", request.getTemplateKey());
+        try {
+            EmailTemplateResponse created = emailTemplateService.createTemplate(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (IllegalArgumentException e) {
+            log.error("Template creation failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
      * Get email template by ID
      */
     @GetMapping("/{id}")
@@ -64,6 +82,17 @@ public class EmailTemplateController {
         log.info("Updating email template: {}", id);
         EmailTemplateResponse updated = emailTemplateService.updateTemplate(id, request);
         return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Delete email template
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteTemplate(@PathVariable Long id) {
+        log.info("Deleting email template: {}", id);
+        emailTemplateService.deleteTemplate(id);
+        return ResponseEntity.noContent().build();
     }
 
     /**

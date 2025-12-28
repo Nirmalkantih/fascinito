@@ -1,5 +1,6 @@
 package com.fascinito.pos.service;
 
+import com.fascinito.pos.dto.email.CreateEmailTemplateRequest;
 import com.fascinito.pos.dto.email.EmailTemplateResponse;
 import com.fascinito.pos.dto.email.EmailTemplateUpdateRequest;
 import com.fascinito.pos.entity.EmailTemplate;
@@ -61,6 +62,30 @@ public class EmailTemplateService {
     }
 
     /**
+     * Create new email template
+     */
+    @Transactional
+    public EmailTemplateResponse createTemplate(CreateEmailTemplateRequest request) {
+        // Check if template with same key already exists
+        if (emailTemplateRepository.findByTemplateKey(request.getTemplateKey()).isPresent()) {
+            throw new IllegalArgumentException("Template with key '" + request.getTemplateKey() + "' already exists");
+        }
+
+        EmailTemplate template = EmailTemplate.builder()
+                .templateKey(request.getTemplateKey())
+                .templateName(request.getTemplateName())
+                .subject(request.getSubject())
+                .bodyHtml(request.getBodyHtml())
+                .isActive(request.getIsActive())
+                .build();
+
+        EmailTemplate saved = emailTemplateRepository.save(template);
+        log.info("Created new email template: {}", saved.getTemplateKey());
+
+        return mapToResponse(saved);
+    }
+
+    /**
      * Update email template
      */
     @Transactional
@@ -82,6 +107,18 @@ public class EmailTemplateService {
         log.info("Updated email template: {}", template.getTemplateKey());
 
         return mapToResponse(updated);
+    }
+
+    /**
+     * Delete email template
+     */
+    @Transactional
+    public void deleteTemplate(Long id) {
+        EmailTemplate template = emailTemplateRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Email template not found"));
+
+        emailTemplateRepository.delete(template);
+        log.info("Deleted email template: {}", template.getTemplateKey());
     }
 
     /**

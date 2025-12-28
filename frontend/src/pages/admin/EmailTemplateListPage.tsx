@@ -19,12 +19,21 @@ import {
   Stack,
   Alert,
   TablePagination,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import {
   Edit as EditIcon,
   Visibility as PreviewIcon,
   Mail as MailIcon,
   Refresh as RefreshIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import api from '../../api/axiosConfig';
 import { useNavigate } from 'react-router-dom';
@@ -53,6 +62,18 @@ export default function EmailTemplateListPage() {
   const [searchText, setSearchText] = useState('');
   const [stats, setStats] = useState<Stats>({ totalTemplates: 0, activeTemplates: 0 });
   const [error, setError] = useState('');
+  const [openCreateDialog, setOpenCreateDialog] = useState(false);
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [newTemplate, setNewTemplate] = useState({
+    templateKey: '',
+    templateName: '',
+    subject: '',
+    bodyHtml: '',
+    isActive: true,
+  });
+  const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Fetch email templates
   const fetchTemplates = async (pageNum: number = 0) => {
@@ -110,6 +131,61 @@ export default function EmailTemplateListPage() {
     } catch (error) {
       setError('Failed to preview template');
       console.error(error);
+    }
+  };
+
+  // Handle create template
+  const handleCreateTemplate = async () => {
+    if (!newTemplate.templateKey.trim() || !newTemplate.templateName.trim() ||
+        !newTemplate.subject.trim() || !newTemplate.bodyHtml.trim()) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setCreating(true);
+      await api.post('/admin/email-templates', newTemplate);
+      setOpenCreateDialog(false);
+      setNewTemplate({
+        templateKey: '',
+        templateName: '',
+        subject: '',
+        bodyHtml: '',
+        isActive: true,
+      });
+      setError('');
+      fetchTemplates(0);
+      fetchStats();
+    } catch (error) {
+      setError('Failed to create template. Template key might already exist.');
+      console.error(error);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // Handle delete template
+  const handleDeleteTemplate = async (id: number) => {
+    setSelectedTemplateId(id);
+    setDeleteConfirmDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedTemplateId) return;
+
+    try {
+      setDeleting(true);
+      await api.delete(`/admin/email-templates/${selectedTemplateId}`);
+      setDeleteConfirmDialog(false);
+      setSelectedTemplateId(null);
+      setError('');
+      fetchTemplates(page);
+      fetchStats();
+    } catch (error) {
+      setError('Failed to delete template');
+      console.error(error);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -186,6 +262,14 @@ export default function EmailTemplateListPage() {
                 onChange={(e) => setSearchText(e.target.value)}
                 sx={{ width: 250 }}
               />
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setOpenCreateDialog(true)}
+                disabled={loading}
+              >
+                Create Template
+              </Button>
               <IconButton onClick={handleRefresh} disabled={loading}>
                 <RefreshIcon />
               </IconButton>
@@ -260,6 +344,14 @@ export default function EmailTemplateListPage() {
                       >
                         <MailIcon fontSize="small" />
                       </IconButton>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteTemplate(template.id)}
+                        title="Delete"
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -281,6 +373,93 @@ export default function EmailTemplateListPage() {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       )}
+
+      {/* Create Template Dialog */}
+      <Dialog open={openCreateDialog} onClose={() => setOpenCreateDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Create New Email Template</DialogTitle>
+        <DialogContent sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <TextField
+            label="Template Key"
+            placeholder="e.g., ORDER_CONFIRMED"
+            fullWidth
+            value={newTemplate.templateKey}
+            onChange={(e) => setNewTemplate({ ...newTemplate, templateKey: e.target.value })}
+            disabled={creating}
+            helperText="Unique identifier for this template (e.g., ORDER_CONFIRMED)"
+          />
+          <TextField
+            label="Template Name"
+            placeholder="e.g., Order Confirmed"
+            fullWidth
+            value={newTemplate.templateName}
+            onChange={(e) => setNewTemplate({ ...newTemplate, templateName: e.target.value })}
+            disabled={creating}
+          />
+          <TextField
+            label="Email Subject"
+            placeholder="e.g., Your order #{{orderId}} has been confirmed"
+            fullWidth
+            value={newTemplate.subject}
+            onChange={(e) => setNewTemplate({ ...newTemplate, subject: e.target.value })}
+            disabled={creating}
+            helperText="You can use variables like {{orderId}}, {{customerName}}, etc."
+          />
+          <TextField
+            label="Email Body (HTML)"
+            placeholder="Enter HTML email body with variables"
+            fullWidth
+            multiline
+            rows={6}
+            value={newTemplate.bodyHtml}
+            onChange={(e) => setNewTemplate({ ...newTemplate, bodyHtml: e.target.value })}
+            disabled={creating}
+            helperText="You can use variables like {{customerName}}, {{totalAmount}}, etc."
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={newTemplate.isActive}
+                onChange={(e) => setNewTemplate({ ...newTemplate, isActive: e.target.checked })}
+                disabled={creating}
+              />
+            }
+            label="Active"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenCreateDialog(false)} disabled={creating}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreateTemplate}
+            variant="contained"
+            disabled={creating}
+          >
+            Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmDialog} onClose={() => setDeleteConfirmDialog(false)}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete this email template? This action cannot be undone.
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmDialog(false)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmDelete}
+            variant="contained"
+            color="error"
+            disabled={deleting}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
