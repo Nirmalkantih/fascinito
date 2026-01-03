@@ -60,6 +60,7 @@ export default function AdminLayout() {
     { text: 'Customers', icon: <People />, path: '/admin/customers', permission: 'view_customers' },
     { text: 'Staff', icon: <AdminPanelSettings />, path: '/admin/staff', permission: 'view_staff' },
     { text: 'Email Templates', icon: <MailIcon />, path: '/admin/email-templates', permission: 'view_dashboard' },
+    { text: 'Email Campaigns', icon: <MailIcon />, path: '/admin/email-campaigns', permission: 'view_dashboard' },
     { text: 'Reports', icon: <Summarize />, path: '/admin/reports', permission: 'view_reports' },
   ]
 

@@ -34,6 +34,8 @@ import AdminStaff from './pages/admin/Staff'
 import AdminReports from './pages/admin/ReportsEnhanced'
 import EmailTemplateListPage from './pages/admin/EmailTemplateListPage'
 import EmailTemplateEditPage from './pages/admin/EmailTemplateEditPage'
+import EmailCampaignListPage from './pages/admin/EmailCampaignListPage'
+import EmailCampaignDetailPage from './pages/admin/EmailCampaignDetailPage'
 
 function App() {
   const { isAuthenticated, user, loading } = useAuth()
@@ -148,6 +150,8 @@ function App() {
         <Route path="staff" element={<ProtectedRoute requiredPermission="view_staff"><AdminStaff /></ProtectedRoute>} />
         <Route path="email-templates" element={<ProtectedRoute requiredPermission="view_dashboard"><EmailTemplateListPage /></ProtectedRoute>} />
         <Route path="email-templates/:id/edit" element={<ProtectedRoute requiredPermission="view_dashboard"><EmailTemplateEditPage /></ProtectedRoute>} />
+        <Route path="email-campaigns" element={<ProtectedRoute requiredPermission="view_dashboard"><EmailCampaignListPage /></ProtectedRoute>} />
+        <Route path="email-campaigns/:campaignId" element={<ProtectedRoute requiredPermission="view_dashboard"><EmailCampaignDetailPage /></ProtectedRoute>} />
         <Route path="reports" element={<ProtectedRoute requiredPermission="view_reports"><AdminReports /></ProtectedRoute>} />
       </Route>
 
